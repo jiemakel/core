@@ -13,6 +13,7 @@ body
   top:0
   bottom:2em
   transition: width 0.5s ease
+  z-index:1
 
 #bottom
   padding: 0.5em 1em
@@ -25,13 +26,14 @@ body
   z-index:1
   width:100%
 
-
 #context.context
   display:inline-block
 
 #context
   display:none
   position:absolute
+  left:444px
+  right:0px
   padding: 1.5em
   height:87%
   overflow:scroll
@@ -47,20 +49,41 @@ body
   white-space: pre
   cursor: pointer
 
-.textLayer > div > a.c1
+.textLayer > div > a.c1, .c1
   border : solid green 1px
 
-.textLayer > div > a.c2
+.textLayer > div > a.c2, .c2
   border : solid red 1px
 
-.textLayer > div > a.c3
+.textLayer > div > a.c3, .c3
   border : solid orange 1px
 
 .popup
   white-space : normal
 
+.popup img.image
+  max-width:245px
+  display:block
+
+.scroller
+  width:100%
+  white-space:nowrap
+  overflow-x:scroll
+  overflow-y:hidden
+
+.scroller .item
+  white-space:normal
+  vertical-align:top
+  max-width:250px
+
+.scroller .item img
+  max-height:250px
+
 a:hover .visible-onhover
   display:block
+
+div.description
+  margin: 5pt 0pt
 
 .mp
   width:250px

@@ -62,9 +62,13 @@ angular.module('app').controller 'MainCtrl', ($window,$scope, $stateParams, $q, 
           FILTER NOT EXISTS {
             ?c dbo:wikiPageDisambiguates ?other .
           }
-          BIND(?c as ?concept)
-          FILTER NOT EXISTS {
-            ?concept dbo:wikiPageRedirects|dbo:wikiPageDisambiguates ?other .
+          {
+            ?c dbo:wikiPageRedirects ?concept .
+          } UNION {
+            FILTER NOT EXISTS {
+              ?c dbo:wikiPageRedirects ?other .
+            }
+            BIND(?c as ?concept)
           }
         }
         BIND(2 AS ?order)
@@ -76,9 +80,11 @@ angular.module('app').controller 'MainCtrl', ($window,$scope, $stateParams, $q, 
     PREFIX skos: <http://www.w3.org/2004/02/skos/core#>
     PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
     PREFIX dc: <http://purl.org/dc/elements/1.1/>
+    PREFIX crm: <http://www.cidoc-crm.org/cidoc-crm/>
     PREFIX wgs84: <http://www.w3.org/2003/01/geo/wgs84_pos#>
     PREFIX georss: <http://www.georss.org/georss/>
-    SELECT (MAX(?cllabel) as ?sllabel) (MAX(?cdlabel) AS ?sdlabel) (MAX(?calabel) AS ?salabel) (MAX(?cgloss) AS ?sgloss) (MAX(?clat) AS ?slat) (MAX(?clng) AS ?slng) (MAX(?cpolygon) AS ?spolygon) WHERE {
+    PREFIX dbo: <http://dbpedia.org/ontology/>
+    SELECT (MAX(?cimageURL) AS ?simageURL) (MAX(?cllabel) AS ?sllabel) (MAX(?cdlabel) AS ?sdlabel) (MAX(?calabel) AS ?salabel) (MAX(?cgloss) AS ?sgloss) (MAX(?clat) AS ?slat) (MAX(?clng) AS ?slng) (MAX(?cpolygon) AS ?spolygon) WHERE {
       {
         VALUES ?concept {
           <CONCEPTS>
@@ -103,8 +109,14 @@ angular.module('app').controller 'MainCtrl', ($window,$scope, $stateParams, $q, 
         }
         BIND(COALESCE(?gloss,"") AS ?cgloss)
         OPTIONAL {
-          ?concept wgs84:lat ?lat .
-          ?concept wgs84:long ?lng .
+          {
+            ?concept wgs84:lat ?lat .
+            ?concept wgs84:long ?lng .
+          } UNION {
+            ?concept crm:P7_took_place_at ?c2 .
+            ?c2 wgs84:lat ?lat .
+            ?c2 wgs84:long ?lng .
+          }
         }
         BIND(COALESCE(?lat,"") AS ?clat)
         BIND(COALESCE(?lng,"") AS ?clng)
@@ -112,6 +124,7 @@ angular.module('app').controller 'MainCtrl', ($window,$scope, $stateParams, $q, 
           ?concept georss:polygon ?polygon .
         }
         BIND(COALESCE(?polygon,"") AS ?cpolygon)
+        BIND("" AS ?cimageURL)
         BIND(1 AS ?order)
       } UNION {
         SERVICE <http://ldf.fi/dbpedia/sparql> {
@@ -128,6 +141,10 @@ angular.module('app').controller 'MainCtrl', ($window,$scope, $stateParams, $q, 
           }
           BIND(COALESCE(?lat,"") AS ?clat)
           BIND(COALESCE(?lng,"") AS ?clng)
+          OPTIONAL {
+            ?concept dbo:thumbnail ?imageURL .
+          }
+          BIND(COALESCE(STR(?imageURL),"") AS ?cimageURL)
           BIND("" AS ?cdlabel)
           BIND("" AS ?calabel)
           BIND("" AS ?cpolygon)
@@ -156,19 +173,33 @@ angular.module('app').controller 'MainCtrl', ($window,$scope, $stateParams, $q, 
       }
     }
   '''
+  $scope.relatedEntitiesQuery = '''
+    PREFIX crm: <http://www.cidoc-crm.org/cidoc-crm/>
+    SELECT ?concept {
+        VALUES ?originalConcept {
+          <CONCEPTS>
+        }
+        {
+          ?originalConcept crm:P11_had_participant ?concept .
+        } UNION {
+          ?originalConcept crm:P7_took_place_at ?concept .
+        }
+    }
+  '''
   $scope.infoQuery = '''
     PREFIX dc: <http://purl.org/dc/elements/1.1/>
     PREFIX crm: <http://www.cidoc-crm.org/cidoc-crm/>
     PREFIX dbo: <http://dbpedia.org/ontology/>
     PREFIX wgs84: <http://www.w3.org/2003/01/geo/wgs84_pos#>
     PREFIX georss: <http://www.georss.org/georss/>
-    SELECT ?description ?lat ?lng ?polygon ?bob ?eob ?boe ?eoe {
+    SELECT ?description ?order ?imageURL ?lat ?lng ?polygon ?bob ?eob ?boe ?eoe {
       {
         VALUES ?concept {
           <CONCEPTS>
         }
         OPTIONAL {
           ?concept dc:description ?description .
+          BIND(1 AS ?order)
         }
         OPTIONAL {
           ?concept wgs84:lat ?lat .
@@ -190,7 +221,11 @@ angular.module('app').controller 'MainCtrl', ($window,$scope, $stateParams, $q, 
             <CONCEPTS>
           }
           ?concept dbo:abstract ?description .
+          BIND(2 AS ?order)
           FILTER(LANG(?description)="en")
+          OPTIONAL {
+            ?concept dbo:thumbnail ?imageURL .
+          }
           OPTIONAL {
             ?concept wgs84:lat ?lat .
             ?concept wgs84:long ?lng .
@@ -227,16 +262,19 @@ angular.module('app').controller 'MainCtrl', ($window,$scope, $stateParams, $q, 
     PREFIX dc: <http://purl.org/dc/elements/1.1/>
     PREFIX crm: <http://www.cidoc-crm.org/cidoc-crm/>
     PREFIX dbo: <http://dbpedia.org/ontology/>
+    PREFIX skos: <http://www.w3.org/2004/02/skos/core#>
     PREFIX wgs84: <http://www.w3.org/2003/01/geo/wgs84_pos#>
+    PREFIX xsd: <http://www.w3.org/2001/XMLSchema#>
     PREFIX georss: <http://www.georss.org/georss/>
     SELECT ?concept ?label ?description ?imageURL ?lat ?lng ?polygon {
       {
-        SELECT ?concept {
-          ?concept wgs84:lat ?lat .
-          ?concept wgs84:long ?lng .
+        SELECT ?concept (STRDT(SAMPLE(?lat1),xsd:decimal) AS ?lat) (STRDT(SAMPLE(?lng1),xsd:decimal) AS ?lng) {
+          ?concept wgs84:lat ?lat1 .
+          ?concept wgs84:long ?lng1 .
         }
-        ORDER BY (ABS(<LAT>+<LNG>-?lat-?lng))
-        LIMIT 100
+        GROUP BY ?concept
+        ORDER BY (ABS(<LAT> - ?lat) + ABS(<LNG> - ?lng))
+        LIMIT 50
       }
       ?concept skos:prefLabel ?label .
       OPTIONAL {
@@ -244,37 +282,103 @@ angular.module('app').controller 'MainCtrl', ($window,$scope, $stateParams, $q, 
       }
     }
   '''
-  $scope.relatedQuery = '''
-    PREFIX dc: <http://purl.org/dc/elements/1.1/>
-    PREFIX edm: <http://www.europeana.eu/schemas/edm/>
-    PREFIX ore: <http://www.openarchives.org/ore/terms/>
-    SELECT ?group ?source ?description ?url ?label ?imageURL {
-      {
-        VALUES ?mlabel2 {
-          <LABELS>
+  $scope.relatedQueries = {
+    'Colorado WW1 Collection' :
+      endpoint : 'http://ldf.fi/colorado-ww1/sparql'
+      query : '''
+        PREFIX bf: <http://bibframe.org/vocab/>
+        PREFIX foaf: <http://xmlns.com/foaf/0.1/>
+        PREFIX cww1s: <http://ldf.fi/colorado-ww1-schema#>
+        PREFIX mads: <http://www.loc.gov/mads/rdf/v1#>
+        SELECT ?group ?group2 ?group2Order ?source ?description ?url ?label ?imageURL {
+          {
+            VALUES ?concept {
+                <CONCEPTS>
+            }
+            {
+              ?s bf:subject ?concept .
+              BIND("has subject" AS ?group2)
+              BIND(0 AS ?group2Order)
+            }
+            UNION
+            {
+              ?s cww1s:possiblyMentions ?concept .
+              BIND("mentions" AS ?group2)
+              BIND(2 AS ?group2Order)
+            }
+          }
+          UNION
+          {
+            VALUES ?mlabel {
+              <LABELS>
+            }
+            ?s2 bf:authorizedAccessPoint ?mlabel .
+            ?s ?p ?s2 .
+            BIND("has actor" AS ?group2)
+            BIND(1 AS ?group2Order)
+          }
+          ?s bf:title ?label .
+          ?s bf:contentsNote ?description .
+          ?s bf:language/bf:languageOfPartUri*/mads:authoritativeLabel ?group .
+          FILTER(LANG(?group)="en")
+          ?i bf:instanceOf ?s .
+          ?i foaf:page ?url .
+          BIND(REPLACE(?url,".pdf$",".jpg") AS ?imageURL)
         }
-        BIND(STR(?mlabel2) AS ?mlabel)
-        SERVICE <http://europeana.ontotext.com/sparql> {
-          ?s dc:subject ?mlabel .
-          ?s dc:title ?label .
-          ?s dc:description ?description .
-          ?s edm:type ?type .
-          ?s ore:proxyFor ?edmA .
-          ?p edm:aggregatedCHO ?edmA .
-          ?p edm:isShownAt ?url .
-          ?p edm:isShownBy ?imageURL .
-          ?p edm:provider ?provider .
+      '''
+    Europeana :
+      endpoint : 'http://ldf.fi/ww1lod/sparql'
+      query: '''
+        PREFIX dc: <http://purl.org/dc/elements/1.1/>
+        PREFIX edm: <http://www.europeana.eu/schemas/edm/>
+        PREFIX ore: <http://www.openarchives.org/ore/terms/>
+        PREFIX xsd: <http://www.w3.org/2001/XMLSchema#>
+        PREFIX luc: <http://www.ontotext.com/owlim/lucene#>
+        SELECT ?group ?source ?description ?url ?label ?imageURL {
+          {
+            VALUES ?mlabel {
+              <LABELS>
+            }
+            SERVICE <http://europeana.ontotext.com/sparql> {
+              ?subject luc: ?mlabel .
+              ?subject luc:score ?score .
+              FILTER(STRDT(?score,<http://www.w3.org/2001/XMLSchema#decimal>)>0.5)
+              { SELECT ?label ?description ?type ?url ?provider ?imageURL {
+                {
+                  ?s dc:subject ?subject .
+                } UNION {
+                  ?s dc:title ?subject .
+                } UNION {
+                  ?s dc:description ?subject .
+                }
+                ?s dc:title ?label .
+                ?s dc:description ?description .
+                ?s edm:type ?type .
+                ?s ore:proxyFor ?edmA .
+                ?p edm:aggregatedCHO ?edmA .
+                ?p edm:isShownAt ?url .
+                ?p edm:provider ?provider .
+                ?p2 edm:aggregatedCHO ?edmA .
+                ?p2 edm:preview ?imageURL .
+                OPTIONAL {
+                  ?s2 ore:proxyFor ?edmA .
+                  ?s2 edm:year ?year .
+                }
+              } LIMIT 50
+              }
+            }
+            BIND(REPLACE(REPLACE(REPLACE(?type,"IMAGE","Images"),"TEXT","Texts"),"VIDEO","Videos") AS ?group)
+            BIND(CONCAT(?provider," via Europeana") AS ?source)
+          }
         }
-        BIND(REPLACE(?type,"IMAGE","images") AS ?group)
-        BIND(CONCAT(?provider," via Europeana") AS ?source)
-      }
-    }
-  '''
+      '''
+  }
   fetchInfo = (scope,concepts) !-->
     if (!scope.loading)
       scope.loading=1
       response <-! sparql.query($scope.sparqlEndpoint,$scope.shortInfoQuery.replace(/<CONCEPTS>/g,concepts.join(" "))).then(_,handleError)
       b = response.data.results.bindings[0]
+      if (b.simageURL.value!="") then scope.imageURL=b.simageURL.value
       if (b.sllabel.value!="") then scope.label=b.sllabel.value
       else if (b.sdlabel.value!="") then scope.label=b.sdlabel.value
       else scope.label=b.salabel.value
@@ -287,11 +391,18 @@ angular.module('app').controller 'MainCtrl', ($window,$scope, $stateParams, $q, 
     context.concepts=concepts
     context.label=label
     context.descriptions = []
+    context.imageURLs = []
     sconcepts = concepts.join(" ")
+    cancelers = {}
+    for canceler of cancelers then canceler.resolve!
     do
-      response <-! sparql.query($scope.sparqlEndpoint,$scope.infoQuery.replace(/<CONCEPTS>/g,sconcepts)).then(_,handleError)
+      cancelers.infoQuery = $q.defer!
+      response <-! sparql.query($scope.sparqlEndpoint,$scope.infoQuery.replace(/<CONCEPTS>/g,sconcepts),{timeout: cancelers.infoQuery.promise}).then(_,handleError)
       for binding in response.data.results.bindings
-        if (binding.description?) then context.descriptions.push(binding.description.value)
+        if (binding.description?)
+          context.descriptions.push({text:binding.description.value,class:binding.order.value})
+        if (binding.imageURL?)
+          context.imageURLs.push(binding.imageURL.value)
         if (binding.lat?) then context.lat=binding.lat.value
         if (binding.lng?) then context.lng=binding.lng.value
         if (binding.bob?)
@@ -310,20 +421,64 @@ angular.module('app').controller 'MainCtrl', ($window,$scope, $stateParams, $q, 
           d = Date.parse(binding.eoe.value)
           if (!beg? || beg>d) then beg=d
           if (!end? || end<d) then end=d
-      console.log("T:",beg,end)
       if (beg? && end?)
-        response <-! sparql.query($scope.sparqlEndpoint,$scope.temporalQuery.replace(/<BEG>/g,beg).REPLACE(/<END>/g,end)).then(_,handleError)
-        console.log(response)
+        cancelers.temporalQuery = $q.defer!
+        response <-! sparql.query($scope.sparqlEndpoint,$scope.temporalQuery.replace(/<BEG>/g,beg).replace(/<END>/g,end),{timeout: cancelers.temporalQuery.promise}).then(_,handleError)
+        console.log("TEMPORAL:",response.data.results.bindings)
       if (context.lat? && context.lng?) then
-        response <-! sparql.query($scope.sparqlEndpoint,$scope.locationQuery.replace(/<LAT>/g,lat).replace(/<LNG>/g,lng)).then(_,handleError)
-        console.log(response)
+        cancelers.locationQuery = $q.defer!
+        response <-! sparql.query($scope.sparqlEndpoint,$scope.locationQuery.replace(/<LAT>/g,context.lat).replace(/<LNG>/g,context.lng),{timeout: cancelers.locationQuery.promise}).then(_,handleError)
+        $scope.context.linkedLocations = []
+        for binding in response.data.results.bindings
+          console.log(binding)
+          $scope.context.linkedLocations.push({concept:sparql.bindingToString(binding.concept),label:binding.label.value,lat:binding.lat.value,lng:binding.lng.value})
     $scope.context=context
-    response <-! sparql.query($scope.sparqlEndpoint,$scope.labelQuery.replace(/<CONCEPTS>/g,sconcepts)).then(_,handleError)
+    cancelers.labelQuery = $q.defer!
+    response <-! sparql.query($scope.sparqlEndpoint,$scope.labelQuery.replace(/<CONCEPTS>/g,sconcepts),{timeout: cancelers.labelQuery.promise}).then(_,handleError)
     labels = []
     for binding in response.data.results.bindings
       labels.push(sparql.bindingToString(binding.label))
-    response <-! sparql.query($scope.sparqlEndpoint,$scope.relatedQuery.replace(/<CONCEPTS>/g,sconcepts).replace(/<LABELS>/g,labels.join(" "))).then(_,handleError)
-    console.log("L:",response)
+    if (beg?) then beg='"'+beg.toISOString! + '"^^<http://www.w3.org/2001/XMLSchema#dateTime>'
+    else beg = '"1914-01-01"^^<http://www.w3.org/2001/XMLSchema#date>'
+    if (end?) then end='"'+beg.toISOString! + '"^^<http://www.w3.org/2001/XMLSchema#dateTime>'
+    else end = '"1919-01-01"^^<http://www.w3.org/2001/XMLSchema#date>'
+    linkedResources = {}
+    for id1,q of $scope.relatedQueries
+      let id = id1
+        cancelers['linkedResourcesQuery_' + id] = $q.defer!
+        response <-! sparql.query(q.endpoint,q.query.replace(/<CONCEPTS>/g,sconcepts).replace(/<LABELS>/g,labels.join(" ").replace(/<BEG>/g,beg).replace(/<END>/g,end)),{timeout: cancelers['linkedResourcesQuery_' + id].promise}).then(_,handleError)
+        if (response.data.results.bindings.length>0)
+          linkedResources[id]=[]
+          groupOrder={}
+          groups=500
+          group2Order={}
+          group2s=500
+          lrmap = {}
+          for binding in response.data.results.bindings
+            group = if (binding.group?) then binding.group.value else ""
+            if (!groupOrder[group]?)
+              if (binding.groupOrder?) then groupOrder[group]=binding.groupOrder.value else groupOrder[group]=groups++
+            group2 = if (binding.group2?) then binding.group2.value else ""
+            if (!group2Order[group2]?)
+              if (binding.group2Order?) then group2Order[group2]=binding.group2Order.value else group2Order[group2]=group2s++
+            if (!lrmap[group]?) then lrmap[group]={}
+            if (!lrmap[group][group2])  then lrmap[group][group2]=[]
+            lrmap[group][group2].push({url:binding.url?.value,imageURL:binding.imageURL?.value,description:binding.description?.value,source:binding.source?.value,label:binding.label.value})
+          groupOrder2 = []
+          for val,ind of groupOrder then groupOrder2[ind]=val
+          group2Order2 = []
+          for val,ind of group2Order then group2Order2[ind]=val
+          for group in groupOrder2 when lrmap[group]
+            gr = {group:group,resources:[]}
+            for group2 in group2Order2
+              if (lrmap[group][group2]?)
+                if (group2!='')
+                  gr.resources.push({group:group2})
+                for ress in lrmap[group][group2]
+                  gr.resources.push(ress)
+            linkedResources[id].push(gr)
+    $scope.context.linkedResources = linkedResources
+  $scope.openContext = (event,concept,label) !-> openContext([concept],label)
   $scope.sparqlEndpoint = 'http://ldf.fi/ww1lod/sparql'
   !function handleError(response)
     console.log(response)
