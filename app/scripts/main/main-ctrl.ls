@@ -178,7 +178,7 @@ angular.module('app').controller 'MainCtrl', ($window,$scope, $stateParams, $q, 
           ?concept georss:polygon ?polygon .
         }
         OPTIONAL {
-          ?concept crm:P4_has_time_span ?ts .
+          ?concept crm:P4_has_time-span ?ts .
           OPTIONAL { ?ts crm:P82a_begin_of_the_begin ?bob }
           OPTIONAL { ?ts crm:P81a_end_of_the_begin ?eob }
           OPTIONAL { ?ts crm:P81b_begin_of_the_end ?boe }
@@ -215,7 +215,7 @@ angular.module('app').controller 'MainCtrl', ($window,$scope, $stateParams, $q, 
         LIMIT 100
       }
       ?concept skos:prefLabel ?label .
-      ?concept crm:P4_has_time_span ?ts .
+      ?concept crm:P4_has_time-span ?ts .
       OPTIONAL { ?ts crm:P82a_begin_of_the_begin ?bob }
       OPTIONAL { ?ts crm:P81a_end_of_the_begin ?eob }
       OPTIONAL { ?ts crm:P81b_begin_of_the_end ?boe }
@@ -224,6 +224,25 @@ angular.module('app').controller 'MainCtrl', ($window,$scope, $stateParams, $q, 
     }
   '''
   $scope.locationQuery = '''
+    PREFIX dc: <http://purl.org/dc/elements/1.1/>
+    PREFIX crm: <http://www.cidoc-crm.org/cidoc-crm/>
+    PREFIX dbo: <http://dbpedia.org/ontology/>
+    PREFIX wgs84: <http://www.w3.org/2003/01/geo/wgs84_pos#>
+    PREFIX georss: <http://www.georss.org/georss/>
+    SELECT ?concept ?label ?description ?imageURL ?lat ?lng ?polygon {
+      {
+        SELECT ?concept {
+          ?concept wgs84:lat ?lat .
+          ?concept wgs84:long ?lng .
+        }
+        ORDER BY (ABS(<LAT>+<LNG>-?lat-?lng))
+        LIMIT 100
+      }
+      ?concept skos:prefLabel ?label .
+      OPTIONAL {
+        ?concept dc:description ?description .
+      }
+    }
   '''
   $scope.relatedQuery = '''
     PREFIX dc: <http://purl.org/dc/elements/1.1/>
@@ -264,33 +283,41 @@ angular.module('app').controller 'MainCtrl', ($window,$scope, $stateParams, $q, 
       if (b.slng.value!="") then scope.lng=b.slng.value
       scope.loading=2
   !function openContext(concepts,label)
-    $scope.concepts=concepts
-    $scope.label=label
-    $scope.context=true
-    $scope.descriptions = []
+    context = {}
+    context.concepts=concepts
+    context.label=label
+    context.descriptions = []
     sconcepts = concepts.join(" ")
     do
       response <-! sparql.query($scope.sparqlEndpoint,$scope.infoQuery.replace(/<CONCEPTS>/g,sconcepts)).then(_,handleError)
       for binding in response.data.results.bindings
-        if (binding.description?) then $scope.descriptions.push(binding.description.value)
-        if (binding.lat?) then $scope.lat=binding.lat.value
-        if (binding.lng?) then $scope.lng=binding.lng.value
-        if (binding.bob? || binding.eob? || binding.boe? || binding.eoe?) then do
-          if (binding.bob?.value<beg) then beg=binding.bob.value
-          if (binding.bob?.value>end) then end=binding.bob.value
-          if (binding.eob?.value<beg) then beg=binding.eob.value
-          if (binding.eob?.value>end) then end=binding.eob.value
-          if (binding.boe?.value<beg) then beg=binding.boe.value
-          if (binding.boe?.value>end) then end=binding.boe.value
-          if (binding.eoe?.value<beg) then beg=binding.eoe.value
-          if (binding.eoe?.value>end) then end=binding.eoe.value
+        if (binding.description?) then context.descriptions.push(binding.description.value)
+        if (binding.lat?) then context.lat=binding.lat.value
+        if (binding.lng?) then context.lng=binding.lng.value
+        if (binding.bob?)
+          d = Date.parse(binding.bob.value)
+          if (!beg? || beg>d) then beg=d
+          if (!end? || end<d) then end=d
+        if (binding.eob?)
+          d = Date.parse(binding.eob.value)
+          if (!beg? || beg>d) then beg=d
+          if (!end? || end<d) then end=d
+        if (binding.boe?)
+          d = Date.parse(binding.boe.value)
+          if (!beg? || beg>d) then beg=d
+          if (!end? || end<d) then end=d
+        if (binding.eoe?)
+          d = Date.parse(binding.eoe.value)
+          if (!beg? || beg>d) then beg=d
+          if (!end? || end<d) then end=d
       console.log("T:",beg,end)
       if (beg? && end?)
         response <-! sparql.query($scope.sparqlEndpoint,$scope.temporalQuery.replace(/<BEG>/g,beg).REPLACE(/<END>/g,end)).then(_,handleError)
         console.log(response)
-      if ($scope.lat? && $scope.lng?) then
-        response <-! sparql.query($scope.sparqlEndpoint,$scope.locationQuery.replace(/<CONCEPTS>/g,sconcepts)).then(_,handleError)
+      if (context.lat? && context.lng?) then
+        response <-! sparql.query($scope.sparqlEndpoint,$scope.locationQuery.replace(/<LAT>/g,lat).replace(/<LNG>/g,lng)).then(_,handleError)
         console.log(response)
+    $scope.context=context
     response <-! sparql.query($scope.sparqlEndpoint,$scope.labelQuery.replace(/<CONCEPTS>/g,sconcepts)).then(_,handleError)
     labels = []
     for binding in response.data.results.bindings
