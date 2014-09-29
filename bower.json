@@ -1,0 +1,17 @@
+{
+  "name": "cr",
+  "version": "0.0.0",
+  "dependencies": {
+    "angular": "latest",
+    "jquery": "latest",
+    "angular-ui-router": "latest",
+    "angular-semantic-ui": "angularify/angular-semantic-ui",
+    "pdfjs-bower": "jiemakel/pdfjs-bower#master",
+    "xregexp": "slevithan/xregexp",
+    "angular-google-staticmaps": "latest",
+    "ngmap": "~0.15.4"
+  },
+  "devDependencies": {
+    "angular-mocks": "*"
+  }
+}

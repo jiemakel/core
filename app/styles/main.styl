@@ -1,0 +1,69 @@
+body
+  background-color : inherit
+
+#pdfviewer.context
+  width:444px
+  display:inline-block
+  position:relative
+
+#pdfviewer
+  position:absolute
+  background-color : #404040
+  width:100%
+  top:0
+  bottom:2em
+  transition: width 0.5s ease
+
+#bottom
+  padding: 0.5em 1em
+  box-sizing:border-box
+  position:absolute
+  background-color: #474747
+  background-image: linear-gradient(hsla(0,0%,27%,.95),hsla(0,0%,32%,.99))
+  box-shadow: inset -1px 0 0 hsla(0,0%,100%,.08), inset 0 -1px 1px hsla(0,0%,0%,.15), inset 0 1px 0 hsla(0,0%,100%,.05), 0 -1px 0 hsla(0,0%,0%,.15), 0 -1px 1px hsla(0,0%,0%,.1)
+  bottom:0
+  z-index:1
+  width:100%
+
+
+#context.context
+  display:inline-block
+
+#context
+  display:none
+  position:absolute
+  padding: 1.5em
+  height:87%
+  overflow:scroll
+  border-left: solid black 3px
+
+.textLayer
+  overflow:visible
+
+.textLayer > div > a
+  color: transparent
+  position: relative
+  border: solid blue 1px
+  white-space: pre
+  cursor: pointer
+
+.textLayer > div > a.c1
+  border : solid green 1px
+
+.textLayer > div > a.c2
+  border : solid red 1px
+
+.textLayer > div > a.c3
+  border : solid orange 1px
+
+.popup
+  white-space : normal
+
+a:hover .visible-onhover
+  display:block
+
+.mp
+  width:250px
+  bottom:100% !important
+  left:-125px !important
+  top:auto !important

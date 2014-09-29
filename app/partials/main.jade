@@ -1,0 +1,24 @@
+script(type="text/ng-template",id="partials/concept.html")
+  a(ng-mouseover="fetchInfo(concepts)",ng-click="openContext(concepts,label);$event.stopPropagation()",ng-class="'c'+class") {{ngram}} <div class="ui large popup top center transition mp visible-onhover">
+    i.icon.loading(ng-show="loading!=2")
+    .header {{label}}
+    .content
+      static-gmap(ng-if="lat",size="250x200",sensor="false",zoom="8",markers="{ color: 'red',label:label,coords: [lat,lng]}")
+      {{gloss}}
+    | </div>
+#pdfviewer(ng-class="{ context : context }",ng-click="context=false")
+  include pdfviewer.jade
+#context(ng-class="context ? 'context' : ''")
+  h1 {{label}}
+  | {{concepts}}
+  div(ng-repeat="description in descriptions") {{description}}
+  div(ng-show="timeline")
+    h2 Timeline
+  div(ng-if="lat")
+    h2 Location
+    map(style="display:block;height:300px",zoom="8",center="[{{lat}},{{lng}}]")
+      marker(position="[{{lat}},{{lng}}]",title="{{label}}")
+  h2 Related resources
+  div(ng-repeat="link in links")
+    foo
+#bottom foobar
