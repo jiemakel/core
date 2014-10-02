@@ -179,11 +179,7 @@ angular.module('app').controller 'MainCtrl', ($window,$scope, $stateParams, $q, 
         VALUES ?originalConcept {
           <CONCEPTS>
         }
-        {
-          ?originalConcept crm:P11_had_participant ?concept .
-        } UNION {
-          ?originalConcept crm:P7_took_place_at ?concept .
-        }
+        ?originalConcept crm:P7_took_place_at|crm:P11_had_participant|crm:P14_carried_out_by ?concept .
     }
   '''
   $scope.infoQuery = '''
