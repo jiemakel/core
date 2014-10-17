@@ -1,25 +1,54 @@
 
-angular.module('app').controller 'MainCtrl', ($window,$scope, $stateParams, $q, sparql, prefixService, $compile, $templateCache) !->
+angular.module('app').controller 'MainCtrl', ($window,$scope, $state, $stateParams, $q, $http, sparql, prefixService, $compile, $templateCache) !->
   $window.PDFJS.workerSrc = 'bower_components/pdfjs-bower/dist/pdf.worker.js'
-  $window.DEFAULT_URL = 'i71780828.pdf'
+  if ($stateParams.url?)
+    if $stateParams.url == /.pdf$/i
+      $scope.view='pdf'
+      $window.DEFAULT_URL = $stateParams.url
+    else
+      $scope.view='html'
+      response <-! $http.get($stateParams.url).then(_,handleError)
+      cd = $window.document.getElementById("htmlviewer").contentDocument
+      base = cd.createElement('base')
+      base.setAttribute('href','http://nzetc.victoria.ac.nz/tm/scholarly/')
+      cd.head.appendChild(base)
+      css = cd.createElement('link')
+      css.setAttribute('href','http://localhost:3000/styles/main.css')
+      css.setAttribute('rel','stylesheet')
+      cd.head.appendChild(css)
+      css = cd.createElement('link')
+      css.setAttribute('href','http://localhost:3000/bower_components/semantic/build/packaged/css/semantic.css')
+      css.setAttribute('rel','stylesheet')
+      cd.head.appendChild(css)
+      cd.body.innerHTML = response.data
+      runAnalysis(angular.element(cd.body).find('a,p,div').contents().filter(-> this.nodeType == 3 && this.parentNode.childNodes.length==1).parent())
+  else
+    $scope.view='pdf'
+    $window.DEFAULT_URL = 'i71780828.pdf'
   $scope.findQuery = '''
     PREFIX skos: <http://www.w3.org/2004/02/skos/core#>
     PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
     PREFIX dbo: <http://dbpedia.org/ontology/>
     PREFIX owl: <http://www.w3.org/2002/07/owl#>
-    SELECT DISTINCT ?ngram ?concept ?order WHERE {
+    SELECT ?ngram ?concept ?order {
       {
-        VALUES ?text {
-          <TEXTS>
+        {
+          SELECT DISTINCT ?ngram {
+            VALUES ?text {
+              <TEXTS>
+            }
+            VALUES ?word_index {
+              <WORD_INDICES>
+            }
+            VALUES ?ngram_words {
+              1 2 3 4 5 6
+            }
+            BIND(CONCAT('(?U)^(?:\\\\s*(?:\\\\S*\\\\s+){', STR(?word_index) ,'}((?:\\\\w+\\\\s+){', STR(?ngram_words-1), '}\\\\w+).*|.*)') AS ?regex)
+            BIND(REPLACE(?text,'\\\\s+',' ','s') AS ?text2)
+            BIND(REPLACE(?text2, ?regex, '$1','s') AS ?ngram)
+            FILTER(STRLEN(?ngram)>2)
+          }
         }
-        VALUES ?word_index {
-          <WORD_INDICES>
-        }
-        VALUES ?ngram_words {
-          1 2 3 4 5 6
-        }
-        BIND(REPLACE(?text, CONCAT('(?U)^(?:\\\\s*(?:\\\\S*\\\\s+){', STR(?word_index) ,'}((?:\\\\w+\\\\s+){', STR(?ngram_words-1), '}\\\\w+).*|.*)'), '$1') as ?ngram)
-        FILTER(STRLEN(?ngram)>2)
         {
           BIND(?ngram AS ?mngram)
           ?c skos:prefLabel|skos:altLabel ?mngram .
@@ -43,17 +72,23 @@ angular.module('app').controller 'MainCtrl', ($window,$scope, $stateParams, $q, 
         BIND(1 AS ?order)
       } UNION {
         SERVICE <http://ldf.fi/dbpedia/sparql> {
-          VALUES ?text {
-            <TEXTS>
+          {
+            SELECT DISTINCT ?ngram {
+              VALUES ?text {
+                <TEXTS>
+              }
+              VALUES ?word_index {
+                <WORD_INDICES>
+              }
+              VALUES ?ngram_words {
+                1 2 3 4 5 6
+              }
+              BIND(CONCAT('(?U)^(?:\\\\s*(?:\\\\S*\\\\s+){', STR(?word_index) ,'}((?:\\\\w+\\\\s+){', STR(?ngram_words-1), '}\\\\w+).*|.*)') AS ?regex)
+              BIND(REPLACE(?text,'\\\\s+',' ','s') AS ?text2)
+              BIND(REPLACE(?text2, ?regex, '$1','s') AS ?ngram)
+              FILTER(STRLEN(?ngram)>2)
+            }
           }
-          VALUES ?word_index {
-            <WORD_INDICES>
-          }
-          VALUES ?ngram_words {
-            1 2 3 4 5 6
-          }
-          BIND(REPLACE(?text, CONCAT('(?U)^(?:\\\\s*(?:\\\\S*\\\\s+){', STR(?word_index) ,'}((?:\\\\w+\\\\s+){', STR(?ngram_words-1), '}\\\\w+).*|.*)'), '$1') as ?ngram)
-          FILTER(STRLEN(?ngram)>2 && UCASE(SUBSTR(?ngram,1,1))=SUBSTR(?ngram,1,1))
           BIND(STRLANG(?ngram,"en") AS ?mngram)
           ?c rdfs:label ?mngram .
           FILTER(STRSTARTS(STR(?c),'http://dbpedia.org/resource/'))
@@ -202,6 +237,11 @@ angular.module('app').controller 'MainCtrl', ($window,$scope, $stateParams, $q, 
           ?concept wgs84:long ?lng .
         }
         OPTIONAL {
+          ?concept crm:P7_took_place_at ?place .
+          ?place wgs84:lat ?lat .
+          ?place wgs84:long ?lng .
+        }
+        OPTIONAL {
           ?concept georss:polygon ?polygon .
         }
         OPTIONAL {
@@ -262,19 +302,38 @@ angular.module('app').controller 'MainCtrl', ($window,$scope, $stateParams, $q, 
     PREFIX wgs84: <http://www.w3.org/2003/01/geo/wgs84_pos#>
     PREFIX xsd: <http://www.w3.org/2001/XMLSchema#>
     PREFIX georss: <http://www.georss.org/georss/>
-    SELECT ?concept ?label ?description ?imageURL ?lat ?lng ?polygon {
+    SELECT ?group ?concept ?label ?description ?imageURL ?lat ?lng ?polygon {
       {
-        SELECT ?concept (STRDT(SAMPLE(?lat1),xsd:decimal) AS ?lat) (STRDT(SAMPLE(?lng1),xsd:decimal) AS ?lng) {
-          ?concept wgs84:lat ?lat1 .
-          ?concept wgs84:long ?lng1 .
+        {
+          SELECT ?concept (STRDT(SAMPLE(?lat1),xsd:decimal) AS ?lat) (STRDT(SAMPLE(?lng1),xsd:decimal) AS ?lng) {
+            ?concept wgs84:lat ?lat1 .
+            ?concept wgs84:long ?lng1 .
+          }
+          GROUP BY ?concept
+          ORDER BY (ABS(<LAT> - ?lat) + ABS(<LNG> - ?lng))
+          LIMIT 50
         }
-        GROUP BY ?concept
-        ORDER BY (ABS(<LAT> - ?lat) + ABS(<LNG> - ?lng))
-        LIMIT 50
-      }
-      ?concept skos:prefLabel ?label .
-      OPTIONAL {
-        ?concept dc:description ?description .
+        ?concept skos:prefLabel ?label .
+        OPTIONAL {
+          ?concept dc:description ?description .
+        }
+        BIND (1 AS ?group)
+      } UNION {
+        {
+          SELECT ?concept (STRDT(SAMPLE(?lat1),xsd:decimal) AS ?lat) (STRDT(SAMPLE(?lng1),xsd:decimal) AS ?lng) {
+            ?place wgs84:lat ?lat1 .
+            ?place wgs84:long ?lng1 .
+            ?concept crm:P7_took_place_at ?place .
+          }
+          GROUP BY ?concept
+          ORDER BY (ABS(<LAT> - ?lat) + ABS(<LNG> - ?lng))
+          LIMIT 50
+        }
+        ?concept skos:prefLabel ?label .
+        OPTIONAL {
+          ?concept dc:description ?description .
+        }
+        BIND (0 AS ?group)
       }
     }
   '''
@@ -332,9 +391,10 @@ angular.module('app').controller 'MainCtrl', ($window,$scope, $stateParams, $q, 
         PREFIX luc: <http://www.ontotext.com/owlim/lucene#>
         SELECT ?group ?source ?description ?url ?label ?imageURL {
           {
-            VALUES ?mlabel {
+            VALUES ?mlabel2 {
               <LABELS>
             }
+            BIND (REPLACE(REPLACE(?mlabel2," +","+ "),"$","+") AS ?mlabel)
             SERVICE <http://europeana.ontotext.com/sparql> {
               ?subject luc: ?mlabel .
               ?subject luc:score ?score .
@@ -382,10 +442,11 @@ angular.module('app').controller 'MainCtrl', ($window,$scope, $stateParams, $q, 
       if (b.slat.value!="") then scope.lat=b.slat.value
       if (b.slng.value!="") then scope.lng=b.slng.value
       scope.loading=2
-  !function openContext(concepts,label)
+  icons = ['http://maps.google.com/mapfiles/ms/icons/blue-dot.png','http://maps.google.com/mapfiles/ms/icons/green-dot.png','http://maps.google.com/mapfiles/ms/icons/orange-dot.png','http://maps.google.com/mapfiles/ms/icons/pink-dot.png','http://maps.google.com/mapfiles/ms/icons/purple-dot.png']
+  !function openContext(concepts)
+    $state.go('home',{concepts})
     context = {}
-    context.concepts=concepts
-    context.label=label
+    $scope.concepts=concepts
     context.descriptions = []
     context.imageURLs = []
     sconcepts = concepts.join(" ")
@@ -426,9 +487,11 @@ angular.module('app').controller 'MainCtrl', ($window,$scope, $stateParams, $q, 
         response <-! sparql.query($scope.sparqlEndpoint,$scope.locationQuery.replace(/<LAT>/g,context.lat).replace(/<LNG>/g,context.lng),{timeout: cancelers.locationQuery.promise}).then(_,handleError)
         $scope.context.linkedLocations = []
         for binding in response.data.results.bindings
-          console.log(binding)
-          $scope.context.linkedLocations.push({concept:sparql.bindingToString(binding.concept),label:binding.label.value,lat:binding.lat.value,lng:binding.lng.value})
+          $scope.context.linkedLocations.push({icon:icons[parseInt(binding.group.value)],concept:sparql.bindingToString(binding.concept),label:binding.label.value,lat:binding.lat.value,lng:binding.lng.value})
     $scope.context=context
+    cancelers.relatedEntitiesQuery = $q.defer!
+    response <-! sparql.query($scope.sparqlEndpoint,$scope.relatedEntitiesQuery.replace(/<CONCEPTS>/g,sconcepts),{timeout: cancelers.relatedEntitiesQuery.promise}).then(_,handleError)
+    for binding in response.data.results.bindings then sconcepts += ' ' + sparql.bindingToString(binding.concept)
     cancelers.labelQuery = $q.defer!
     response <-! sparql.query($scope.sparqlEndpoint,$scope.labelQuery.replace(/<CONCEPTS>/g,sconcepts),{timeout: cancelers.labelQuery.promise}).then(_,handleError)
     labels = []
@@ -474,7 +537,7 @@ angular.module('app').controller 'MainCtrl', ($window,$scope, $stateParams, $q, 
                   gr.resources.push(ress)
             linkedResources[id].push(gr)
     $scope.context.linkedResources = linkedResources
-  $scope.openContext = (event,concept,label) !-> openContext([concept],label)
+  $scope.openContext = (event,concept) !-> openContext([concept])
   $scope.sparqlEndpoint = 'http://ldf.fi/ww1lod/sparql'
   !function handleError(response)
     console.log(response)
@@ -483,9 +546,10 @@ angular.module('app').controller 'MainCtrl', ($window,$scope, $stateParams, $q, 
     lastIndex = 0
     escapedTexts = ""
     for text in texts
-      escapedTexts+= '"' + sparql.sanitize(text) + '" '
-      cLastIndex = text.match(/\s+/g)?.length ? 0
-      if (cLastIndex>lastIndex) then lastIndex=cLastIndex
+      for text2 in text.split('\n')
+        escapedTexts+= '"' + sparql.sanitize(text2) + '" '
+        cLastIndex = text2.match(/\s+/g)?.length ? 0
+        if (cLastIndex>lastIndex) then lastIndex=cLastIndex
     query = $scope.findQuery.replace(/<WORD_INDICES>/g,[0 to lastIndex].join(" ")).replace(/<TEXTS>/g,escapedTexts)
     response <-! sparql.query($scope.sparqlEndpoint,query).then(_,handleError)
     ngramsToConcepts = {}
@@ -578,3 +642,6 @@ angular.module('app').controller 'MainCtrl', ($window,$scope, $stateParams, $q, 
     @updateMatches!
     if textDivsToAnalyze.length!=0 then runAnalysis(textDivsToAnalyze)
   $window.webViewerLoad!
+  if $stateParams.concepts?
+    if !($stateParams.concepts instanceof Array) then $stateParams.concepts=[$stateParams.concepts]
+    openContext($stateParams.concepts)

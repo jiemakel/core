@@ -1,5 +1,5 @@
 script(type="text/ng-template",id="partials/concept.html")
-  a(ng-mouseover="fetchInfo(concepts)",ng-click="openContext(concepts,label);$event.stopPropagation()",ng-class="'c'+class") {{ngram}} <div class="ui large popup top center transition mp visible-onhover">
+  a.concept(ng-mouseover="fetchInfo(concepts)",ng-click="openContext(concepts,label);$event.stopPropagation()",ng-class="'c'+class") {{ngram}} <div class="ui large popup top center transition mp visible-onhover">
     i.icon.loading(ng-show="loading!=2")
     .header {{label}}
     .content
@@ -7,8 +7,10 @@ script(type="text/ng-template",id="partials/concept.html")
       static-gmap(ng-if="lat",size="250x200",sensor="false",zoom="8",markers="{ color: 'red',label:label,coords: [lat,lng]}")
       {{gloss}}
     | </div>
-#pdfviewer(ng-class="{ context : context }",ng-click="context=false")
-  include pdfviewer.jade
+#documentviewer(ng-class="{ context : context }",ng-click="context=false")
+  #pdfviewer(ng-show="view=='pdf'")
+    include pdfviewer.jade
+  iframe#htmlviewer(ng-show="view=='html'")
 #context(ng-class="context ? 'context' : ''"): #context2
   h1 {{context.label}}
   |Sources:
@@ -21,7 +23,7 @@ script(type="text/ng-template",id="partials/concept.html")
     h2 Location
     map(style="display:block;height:300px",zoom="8",center="[{{context.lat}},{{context.lng}}]")
       marker(position="[{{context.lat}},{{context.lng}}]",title="{{context.label}}")
-      marker(ng-repeat="location in context.linkedLocations" position="[{{location.lat}},{{location.lng}}]",title="{{location.label}}" icon="http://maps.google.com/mapfiles/ms/icons/blue-dot.png",on-click="openContext(location.concept,location.label)")
+      marker(ng-repeat="location in context.linkedLocations" position="[{{location.lat}},{{location.lng}}]",title="{{location.label}}" icon="{{location.icon}}",on-click="openContext(location.concept,location.label)")
   h2 Possibly Related Resources
   div(ng-repeat="(title,groups) in context.linkedResources")
     h3 {{title}}

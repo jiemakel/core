@@ -1,12 +1,12 @@
 body
   background-color : inherit
 
-#pdfviewer.context
+#documentviewer.context
   width:444px
   display:inline-block
   position:relative
 
-#pdfviewer
+#documentviewer
   position:absolute
   background-color : #404040
   width:100%
@@ -14,6 +14,10 @@ body
   bottom:2em
   transition: width 0.5s ease
   z-index:1
+
+#htmlviewer
+  width:100%
+  height:100%
 
 #bottom
   padding: 0.5em 1em
@@ -42,20 +46,19 @@ body
 .textLayer
   overflow:visible
 
-.textLayer > div > a
-  color: transparent
+a.concept
   position: relative
   border: solid blue 1px
   white-space: pre
   cursor: pointer
 
-.textLayer > div > a.c1, .c1
+a.concept.c1, .c1
   border : solid green 1px
 
-.textLayer > div > a.c2, .c2
+a.concept.c2, .c2
   border : solid red 1px
 
-.textLayer > div > a.c3, .c3
+a.concept.c3, .c3
   border : solid orange 1px
 
 .popup

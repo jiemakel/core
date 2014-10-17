@@ -32,7 +32,11 @@ html(ng-app='app',dir='ltr')
     script(type="text/javascript",src='bower_components/xregexp/xregexp-all.js')
     script(type="text/javascript",src='bower_components/pdfjs-bower/dist/l10n.js')
     script(type="text/javascript",src="bower_components/pdfjs-bower/dist/viewer.js")
-    script(type="text/javascript",src="scripts/timeline_2.3.1/timeline_js/timeline-bundle.js")
+    script(type="text/javascript").
+      Timeline_ajax_url="scripts/timeline_2.3.1/timeline_ajax/simile-ajax-api.js";
+      Timeline_urlPrefix='scripts/timeline_2.3.1/timeline_js/';
+      Timeline_parameters='bundle=true';
+    script(type="text/javascript",src="scripts/timeline_2.3.1/timeline_js/timeline-api.js")
     // endbuild
     // build:js(.tmp) scripts/main.js
     script(src='scripts/sparql/sparqlService.js')
