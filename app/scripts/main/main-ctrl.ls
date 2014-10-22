@@ -14,7 +14,6 @@ angular.module('app').controller 'MainCtrl', ($window,$scope, $location, $stateP
       base = cd.createElement('base')
       base.setAttribute('href',$stateParams.url.substring(0,$stateParams.url.lastIndexOf('/')+1).replace('://ldf.fi/corsproxy/','://'))
       loc = $window.location.protocol + '//' + $window.location.host + $window.location.pathname
-      console.log($window.location,loc)
       cd.head.appendChild(base)
       css = cd.createElement('link')
       css.setAttribute('href',loc + 'styles/main.css')
