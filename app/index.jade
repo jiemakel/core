@@ -11,6 +11,11 @@ html(ng-app='app',dir='ltr')
     link(rel='stylesheet', href='styles/main.css')
     // endbuild
     link(rel='resource', type='application/l10n', href='bower_components/pdfjs-bower/dist/locale/locale.properties')
+    script(type="text/javascript").
+      Timeline_ajax_url="scripts/timeline_2.3.1/timeline_ajax/simile-ajax-api.js"
+      Timeline_urlPrefix='scripts/timeline_2.3.1/timeline_js/'
+      Timeline_parameters='bundle=true'
+    script(type="text/javascript",src="scripts/timeline_2.3.1/timeline_js/timeline-api.js")
   body
     main.container(ui-view="")
     // build:js(app) scripts/vendor.js
@@ -19,7 +24,6 @@ html(ng-app='app',dir='ltr')
     script(src='bower_components/angular/angular.js')
     script(src='bower_components/angular-ui-router/release/angular-ui-router.js')
     script(src='bower_components/angular-mocks/angular-mocks.js')
-    script(src='bower_components/semantic/build/packaged/javascript/semantic.js')
     script(src='bower_components/angular-semantic-ui/dist/angular-semantic-ui.min.js')
     script(src='bower_components/angular-semantic-ui/dist/angular-semantic-ui.tpl.min.js')
     script(src='bower_components/pdfjs-bower/dist/compatibility.js')
@@ -32,11 +36,6 @@ html(ng-app='app',dir='ltr')
     script(type="text/javascript",src='bower_components/xregexp/xregexp-all.js')
     script(type="text/javascript",src='bower_components/pdfjs-bower/dist/l10n.js')
     script(type="text/javascript",src="bower_components/pdfjs-bower/dist/viewer.js")
-    script(type="text/javascript").
-      Timeline_ajax_url="scripts/timeline_2.3.1/timeline_ajax/simile-ajax-api.js";
-      Timeline_urlPrefix='scripts/timeline_2.3.1/timeline_js/';
-      Timeline_parameters='bundle=true';
-    script(type="text/javascript",src="scripts/timeline_2.3.1/timeline_js/timeline-api.js")
     // endbuild
     // build:js(.tmp) scripts/main.js
     script(src='scripts/sparql/sparqlService.js')

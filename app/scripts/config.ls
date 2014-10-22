@@ -2,6 +2,11 @@ angular.module('app', ['ngMap','wu.staticGmap','angularify.semantic.popup', 'ui.
   .config ($stateProvider, $urlRouterProvider) !->
     $stateProvider.state 'home',
       url: '/?concepts&url'
+      resolve:
+        init : ($q,$window) ->
+          ret = $q.defer!
+          $window.onload = ret.resolve
+          ret.promise
       templateUrl: 'partials/main.html'
       controller: 'MainCtrl'
       reloadOnSearch: false

@@ -1,6 +1,8 @@
-
-angular.module('app').controller 'MainCtrl', ($window,$scope, $state, $stateParams, $q, $http, sparql, prefixService, $compile, $templateCache) !->
+angular.module('app').controller 'MainCtrl', ($window,$scope, $location, $stateParams, $q, $http, sparql, prefixService, $compile, $templateCache) !->
   $window.PDFJS.workerSrc = 'bower_components/pdfjs-bower/dist/pdf.worker.js'
+  $window.document.getElementById("htmlviewer").contentWindow.onclick = ->
+    $scope.context=false
+    $scope.$apply!
   if ($stateParams.url?)
     if $stateParams.url == /.pdf$/i
       $scope.view='pdf'
@@ -10,14 +12,16 @@ angular.module('app').controller 'MainCtrl', ($window,$scope, $state, $statePara
       response <-! $http.get($stateParams.url).then(_,handleError)
       cd = $window.document.getElementById("htmlviewer").contentDocument
       base = cd.createElement('base')
-      base.setAttribute('href','http://nzetc.victoria.ac.nz/tm/scholarly/')
+      base.setAttribute('href',$stateParams.url.substring(0,$stateParams.url.lastIndexOf('/')+1).replace('://ldf.fi/corsproxy/','://'))
+      loc = $window.location.protocol + '//' + $window.location.host + $window.location.pathname
+      console.log($window.location,loc)
       cd.head.appendChild(base)
       css = cd.createElement('link')
-      css.setAttribute('href','http://localhost:3000/styles/main.css')
+      css.setAttribute('href',loc + 'styles/main.css')
       css.setAttribute('rel','stylesheet')
       cd.head.appendChild(css)
       css = cd.createElement('link')
-      css.setAttribute('href','http://localhost:3000/bower_components/semantic/build/packaged/css/semantic.css')
+      css.setAttribute('href',loc + 'bower_components/semantic/build/packaged/css/semantic.css')
       css.setAttribute('rel','stylesheet')
       cd.head.appendChild(css)
       cd.body.innerHTML = response.data
@@ -72,38 +76,40 @@ angular.module('app').controller 'MainCtrl', ($window,$scope, $state, $statePara
         BIND(1 AS ?order)
       } UNION {
         SERVICE <http://ldf.fi/dbpedia/sparql> {
-          {
-            SELECT DISTINCT ?ngram {
-              VALUES ?text {
-                <TEXTS>
+          SELECT ?ngram ?concept {
+            {
+              SELECT DISTINCT ?ngram {
+                VALUES ?text {
+                  <TEXTS>
+                }
+                VALUES ?word_index {
+                  <WORD_INDICES>
+                }
+                VALUES ?ngram_words {
+                  1 2 3 4 5 6
+                }
+                BIND(CONCAT('(?U)^(?:\\\\s*(?:\\\\S*\\\\s+){', STR(?word_index) ,'}((?:\\\\w+\\\\s+){', STR(?ngram_words-1), '}\\\\w+).*|.*)') AS ?regex)
+                BIND(REPLACE(?text,'\\\\s+',' ','s') AS ?text2)
+                BIND(REPLACE(?text2, ?regex, '$1','s') AS ?ngram)
+                FILTER(STRLEN(?ngram)>2)
               }
-              VALUES ?word_index {
-                <WORD_INDICES>
-              }
-              VALUES ?ngram_words {
-                1 2 3 4 5 6
-              }
-              BIND(CONCAT('(?U)^(?:\\\\s*(?:\\\\S*\\\\s+){', STR(?word_index) ,'}((?:\\\\w+\\\\s+){', STR(?ngram_words-1), '}\\\\w+).*|.*)') AS ?regex)
-              BIND(REPLACE(?text,'\\\\s+',' ','s') AS ?text2)
-              BIND(REPLACE(?text2, ?regex, '$1','s') AS ?ngram)
-              FILTER(STRLEN(?ngram)>2)
             }
-          }
-          BIND(STRLANG(?ngram,"en") AS ?mngram)
-          ?c rdfs:label ?mngram .
-          FILTER(STRSTARTS(STR(?c),'http://dbpedia.org/resource/'))
-          FILTER(!STRSTARTS(STR(?c),'http://dbpedia.org/resource/Category:'))
-          FILTER EXISTS { ?c a ?type }
-          FILTER NOT EXISTS {
-            ?c dbo:wikiPageDisambiguates ?other .
-          }
-          {
-            ?c dbo:wikiPageRedirects ?concept .
-          } UNION {
+            BIND(STRLANG(?ngram,"en") AS ?mngram)
+            ?c rdfs:label ?mngram .
+            FILTER(STRSTARTS(STR(?c),'http://dbpedia.org/resource/'))
+            FILTER(!STRSTARTS(STR(?c),'http://dbpedia.org/resource/Category:'))
+            FILTER EXISTS { ?c a ?type }
             FILTER NOT EXISTS {
-              ?c dbo:wikiPageRedirects ?other .
+              ?c dbo:wikiPageDisambiguates ?other .
             }
-            BIND(?c as ?concept)
+            {
+              ?c dbo:wikiPageRedirects ?concept .
+            } UNION {
+              FILTER NOT EXISTS {
+                ?c dbo:wikiPageRedirects ?other .
+              }
+              BIND(?c as ?concept)
+            }
           }
         }
         BIND(2 AS ?order)
@@ -218,15 +224,28 @@ angular.module('app').controller 'MainCtrl', ($window,$scope, $state, $statePara
     }
   '''
   $scope.infoQuery = '''
+    PREFIX skos: <http://www.w3.org/2004/02/skos/core#>
+    PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
     PREFIX dc: <http://purl.org/dc/elements/1.1/>
     PREFIX crm: <http://www.cidoc-crm.org/cidoc-crm/>
     PREFIX dbo: <http://dbpedia.org/ontology/>
     PREFIX wgs84: <http://www.w3.org/2003/01/geo/wgs84_pos#>
     PREFIX georss: <http://www.georss.org/georss/>
-    SELECT ?description ?order ?imageURL ?lat ?lng ?polygon ?bob ?eob ?boe ?eoe {
+    SELECT (COALESCE(?llabel,?dlabel,?alabel) AS ?label) ?description ?order ?imageURL ?lat ?lng ?polygon ?bob ?eob ?boe ?eoe {
       {
         VALUES ?concept {
           <CONCEPTS>
+        }
+        OPTIONAL {
+          ?concept skos:prefLabel ?llabel .
+          FILTER(LANG(?llabel)="en")
+        }
+        OPTIONAL {
+          ?concept skos:prefLabel ?dlabel .
+          FILTER(LANG(?dlabel)="")
+        }
+        OPTIONAL {
+          ?concept skos:prefLabel ?alabel .
         }
         OPTIONAL {
           ?concept dc:description ?description .
@@ -256,6 +275,8 @@ angular.module('app').controller 'MainCtrl', ($window,$scope, $state, $statePara
           VALUES ?concept {
             <CONCEPTS>
           }
+          ?concept rdfs:label ?llabel .
+          FILTER(LANG(?llabel)="en")
           ?concept dbo:abstract ?description .
           BIND(2 AS ?order)
           FILTER(LANG(?description)="en")
@@ -270,30 +291,128 @@ angular.module('app').controller 'MainCtrl', ($window,$scope, $state, $statePara
       }
     }
   '''
-  $scope.temporalQuery = '''
-    PREFIX dc: <http://purl.org/dc/elements/1.1/>
-    PREFIX crm: <http://www.cidoc-crm.org/cidoc-crm/>
-    PREFIX skos: <http://www.w3.org/2004/02/skos/core#>
-    SELECT ?concept ?label ?description ?imageURL ?bob ?eob ?boe ?eoe {
-      {
-        SELECT ?concept {
-          SELECT ?concept (MAX(?tp) AS ?end) (MIN(?tp) AS ?beg) {
-            ?concept crm:P4_has_time_span/(crm:P82a_begin_of_the_begin|crm:P81a_end_of_the_begin|crm:P81b_begin_of_the_end|crm:P82b_end_of_the_end) ?tp .
+  $scope.temporalQueries = {
+    'Events Near in Time' :
+      endpoint : 'http://ldf.fi/ww1lod/sparql'
+      query : '''
+        PREFIX dc: <http://purl.org/dc/elements/1.1/>
+        PREFIX crm: <http://www.cidoc-crm.org/cidoc-crm/>
+        PREFIX xsd: <http://www.w3.org/2001/XMLSchema#>
+        PREFIX skos: <http://www.w3.org/2004/02/skos/core#>
+        SELECT ?concept (SAMPLE(?label) AS ?slabel) (SAMPLE(?description) AS ?sdescription) (SAMPLE(?imageURL) AS ?simageURL) (SAMPLE(?bob) AS ?sbob) (SAMPLE(?eob) AS ?seob) (SAMPLE(?boe) AS ?sboe) (SAMPLE(?eoe) AS ?seoe) {
+          {
+            SELECT ?concept {
+              BIND(STRDT(REPLACE(STR(<BEG>),CONCAT(TZ(<BEG>),"$"),""),xsd:dateTime) AS ?lbeg)
+              BIND(STRDT(REPLACE(STR(<END>),CONCAT(TZ(<END>),"$"),""),xsd:dateTime) AS ?lend)
+              {
+                SELECT ?concept (MAX(?tp) AS ?end) (MIN(?tp) AS ?beg) {
+                  ?concept crm:P4_has_time-span/(crm:P82a_begin_of_the_begin|crm:P81a_end_of_the_begin|crm:P81b_begin_of_the_end|crm:P82b_end_of_the_end) ?tp .
+                }
+                GROUP BY ?concept
+              }
+              BIND(STRDT(REPLACE(STR(?lbeg - ?beg),"^-",""),xsd:duration) AS ?dif1)
+              FILTER(BOUND(?dif1))
+              BIND(STRDT(REPLACE(STR(?lend - ?end),"^-",""),xsd:duration) AS ?dif2)
+              FILTER(BOUND(?dif2))
+            }
+            ORDER BY (?dif1+?dif2)
+            LIMIT 15
           }
-          GROUP BY ?concept
+          ?concept skos:prefLabel ?label .
+          FILTER(LANG(?label)='en' || LANG(?label)='')
+          ?concept crm:P4_has_time-span ?ts .
+          ?ts crm:P82a_begin_of_the_begin ?bob .
+          ?ts crm:P82b_end_of_the_end ?eoe .
+          OPTIONAL { ?ts crm:P81a_end_of_the_begin ?eob }
+          OPTIONAL { ?ts crm:P81b_begin_of_the_end ?boe }
+          OPTIONAL {
+            ?concept dc:description ?description
+            FILTER(LANG(?description)='en' || LANG(?description)='')
+          }
         }
-        ORDER BY (ABS(<BEG>+<END>-?beg-?end))
-        LIMIT 100
-      }
-      ?concept skos:prefLabel ?label .
-      ?concept crm:P4_has_time-span ?ts .
-      OPTIONAL { ?ts crm:P82a_begin_of_the_begin ?bob }
-      OPTIONAL { ?ts crm:P81a_end_of_the_begin ?eob }
-      OPTIONAL { ?ts crm:P81b_begin_of_the_end ?boe }
-      OPTIONAL { ?ts crm:P82b_end_of_the_end ?eoe }
-      OPTIONAL { ?concept dc:description ?description }
-    }
-  '''
+        GROUP BY ?concept
+      '''
+    'Important Events Near in Time' :
+      endpoint : 'http://ldf.fi/ww1lod/sparql'
+      query : '''
+        PREFIX dc: <http://purl.org/dc/elements/1.1/>
+        PREFIX crm: <http://www.cidoc-crm.org/cidoc-crm/>
+        PREFIX xsd: <http://www.w3.org/2001/XMLSchema#>
+        PREFIX skos: <http://www.w3.org/2004/02/skos/core#>
+        SELECT ?concept (SAMPLE(?label) AS ?slabel) (SAMPLE(?description) AS ?sdescription) (SAMPLE(?imageURL) AS ?simageURL) (SAMPLE(?bob) AS ?sbob) (SAMPLE(?eob) AS ?seob) (SAMPLE(?boe) AS ?sboe) (SAMPLE(?eoe) AS ?seoe) {
+          {
+            SELECT ?concept {
+              BIND(STRDT(REPLACE(STR(<BEG>),CONCAT(TZ(<BEG>),"$"),""),xsd:dateTime) AS ?lbeg)
+              BIND(STRDT(REPLACE(STR(<END>),CONCAT(TZ(<END>),"$"),""),xsd:dateTime) AS ?lend)
+              {
+                SELECT ?concept (MAX(?tp) AS ?end) (MIN(?tp) AS ?beg) {
+                  GRAPH <http://ldf.fi/ww1lod/iwm/> { ?concept crm:P4_has_time-span ?ts }
+                  ?ts crm:P82a_begin_of_the_begin|crm:P81a_end_of_the_begin|crm:P81b_begin_of_the_end|crm:P82b_end_of_the_end ?tp .
+                }
+                GROUP BY ?concept
+              }
+              BIND(STRDT(REPLACE(STR(?lbeg - ?beg),"^-",""),xsd:duration) AS ?dif1)
+              FILTER(BOUND(?dif1))
+              BIND(STRDT(REPLACE(STR(?lend - ?end),"^-",""),xsd:duration) AS ?dif2)
+              FILTER(BOUND(?dif2))
+            }
+            ORDER BY (?dif1+?dif2)
+            LIMIT 15
+          }
+          ?concept skos:prefLabel ?label .
+          FILTER(LANG(?label)='en' || LANG(?label)='')
+          ?concept crm:P4_has_time-span ?ts .
+          ?ts crm:P82a_begin_of_the_begin ?bob .
+          ?ts crm:P82b_end_of_the_end ?eoe .
+          OPTIONAL { ?ts crm:P81a_end_of_the_begin ?eob }
+          OPTIONAL { ?ts crm:P81b_begin_of_the_end ?boe }
+          OPTIONAL {
+            ?concept dc:description ?description
+            FILTER(LANG(?description)='en' || LANG(?description)='')
+          }
+        }
+        GROUP BY ?concept
+      '''
+    'Other Events Near Location' :
+      endpoint : 'http://ldf.fi/ww1lod/sparql'
+      query : '''
+        PREFIX dc: <http://purl.org/dc/elements/1.1/>
+        PREFIX crm: <http://www.cidoc-crm.org/cidoc-crm/>
+        PREFIX xsd: <http://www.w3.org/2001/XMLSchema#>
+        PREFIX wgs84: <http://www.w3.org/2003/01/geo/wgs84_pos#>
+        PREFIX skos: <http://www.w3.org/2004/02/skos/core#>
+        SELECT ?concept (SAMPLE(?label) AS ?slabel) (SAMPLE(?description) AS ?sdescription) (SAMPLE(?imageURL) AS ?simageURL) (SAMPLE(?bob) AS ?sbob) (SAMPLE(?eob) AS ?seob) (SAMPLE(?boe) AS ?sboe) (SAMPLE(?eoe) AS ?seoe) {
+          FILTER(<LAT>!="")
+          {
+            SELECT ?concept (STRDT(SAMPLE(?lat1),xsd:decimal) AS ?lat) (STRDT(SAMPLE(?lng1),xsd:decimal) AS ?lng) {
+              {
+                SELECT DISTINCT ?concept {
+                  ?concept crm:P4_has_time-span/(crm:P82a_begin_of_the_begin|crm:P81a_end_of_the_begin|crm:P81b_begin_of_the_end|crm:P82b_end_of_the_end) ?tp .
+                }
+              }
+              ?concept crm:P7_took_place_at ?place .
+              ?place wgs84:lat ?lat1 .
+              ?place wgs84:long ?lng1 .
+            }
+            GROUP BY ?concept
+            ORDER BY (ABS(<LAT> - ?lat) + ABS(<LNG> - ?lng))
+            LIMIT 15
+          }
+          ?concept skos:prefLabel ?label .
+          FILTER(LANG(?label)='en' || LANG(?label)='')
+          ?concept crm:P4_has_time-span ?ts .
+          ?ts crm:P82a_begin_of_the_begin ?bob .
+          ?ts crm:P82b_end_of_the_end ?eoe .
+          OPTIONAL { ?ts crm:P81a_end_of_the_begin ?eob }
+          OPTIONAL { ?ts crm:P81b_begin_of_the_end ?boe }
+          OPTIONAL {
+            ?concept dc:description ?description
+            FILTER(LANG(?description)='en' || LANG(?description)='')
+          }
+        }
+        GROUP BY ?concept
+      '''
+  }
   $scope.locationQuery = '''
     PREFIX dc: <http://purl.org/dc/elements/1.1/>
     PREFIX crm: <http://www.cidoc-crm.org/cidoc-crm/>
@@ -389,12 +508,12 @@ angular.module('app').controller 'MainCtrl', ($window,$scope, $state, $statePara
         PREFIX ore: <http://www.openarchives.org/ore/terms/>
         PREFIX xsd: <http://www.w3.org/2001/XMLSchema#>
         PREFIX luc: <http://www.ontotext.com/owlim/lucene#>
-        SELECT ?group ?source ?description ?url ?label ?imageURL {
+        SELECT DISTINCT ?group ?source ?description ?url ?label ?imageURL {
           {
             VALUES ?mlabel2 {
               <LABELS>
             }
-            BIND (REPLACE(REPLACE(?mlabel2," +","+ "),"$","+") AS ?mlabel)
+            BIND (CONCAT("'",?mlabel2,"'") AS ?mlabel)
             SERVICE <http://europeana.ontotext.com/sparql> {
               ?subject luc: ?mlabel .
               ?subject luc:score ?score .
@@ -444,51 +563,121 @@ angular.module('app').controller 'MainCtrl', ($window,$scope, $state, $statePara
       scope.loading=2
   icons = ['http://maps.google.com/mapfiles/ms/icons/blue-dot.png','http://maps.google.com/mapfiles/ms/icons/green-dot.png','http://maps.google.com/mapfiles/ms/icons/orange-dot.png','http://maps.google.com/mapfiles/ms/icons/pink-dot.png','http://maps.google.com/mapfiles/ms/icons/purple-dot.png']
   !function openContext(concepts)
-    $state.go('home',{concepts})
+    $location.search('concepts',concepts)
     context = {}
     $scope.concepts=concepts
     context.descriptions = []
     context.imageURLs = []
+    context.temporalQueries = []
+    $scope.context=context
     sconcepts = concepts.join(" ")
     cancelers = {}
     for canceler of cancelers then canceler.resolve!
-    do
-      cancelers.infoQuery = $q.defer!
-      response <-! sparql.query($scope.sparqlEndpoint,$scope.infoQuery.replace(/<CONCEPTS>/g,sconcepts),{timeout: cancelers.infoQuery.promise}).then(_,handleError)
+    cancelers.infoQuery = $q.defer!
+    response <-! sparql.query($scope.sparqlEndpoint,$scope.infoQuery.replace(/<CONCEPTS>/g,sconcepts),{timeout: cancelers.infoQuery.promise}).then(_,handleError)
+    for binding in response.data.results.bindings
+      if (binding.label? && !context.label?) then context.label=binding.label.value
+      if (binding.description?)
+        context.descriptions.push({text:binding.description.value,class:binding.order.value})
+      if (binding.imageURL?)
+        context.imageURLs.push(binding.imageURL.value)
+      if (binding.lat?) then context.lat=binding.lat.value
+      if (binding.lng?) then context.lng=binding.lng.value
+      if (binding.bob?)
+        d = new Date(binding.bob.value)
+        context.bob=d
+        if (!beg? || beg>d) then beg=d
+        if (!end? || end<d) then end=d
+      if (binding.eob?)
+        d = new Date(binding.eob.value)
+        context.eob=d
+        if (!beg? || beg>d) then beg=d
+        if (!end? || end<d) then end=d
+      if (binding.boe?)
+        context.boe=d
+        d = new Date(binding.boe.value)
+        if (!beg? || beg>d) then beg=d
+        if (!end? || end<d) then end=d
+      if (binding.eoe?)
+        context.eoe=d
+        d = new Date(binding.eoe.value)
+        if (!beg? || beg>d) then beg=d
+        if (!end? || end<d) then end=d
+    if (beg? && end?)
+      begS='"'+beg.toISOString! + '"^^<http://www.w3.org/2001/XMLSchema#dateTime>'
+      endS='"'+end.toISOString! + '"^^<http://www.w3.org/2001/XMLSchema#dateTime>'
+      count = 0
+      for id1,q of $scope.temporalQueries
+        let id = id1
+          cancelers['temporalQuery_' + id] = $q.defer!
+          response <-! sparql.query(q.endpoint,q.query.replace(/<BEG>/g,begS).replace(/<END>/g,endS).replace(/<LAT>/g,context.lat ? '""').replace(/<LNG>/g,context.lng ? '""'),{timeout: cancelers['temporalQuery_' + id].promise}).then(_,handleError)
+          eventsD = []
+          eventsM = []
+          eventsY = []
+          for binding in response.data.results.bindings when binding.sbob? && binding.seoe?
+            bob = new Date(binding.sbob.value)
+            eoe = new Date(binding.seoe.value)
+            start = if binding.seob? then new Date(binding.seob.value) else new Date(bob.getTime! + (eoe - bob)/2)
+            end = if binding.sboe? then new Date(binding.sboe.value) else new Date(bob.getTime! + (eoe - bob)/2)
+            diff = eoe - bob
+            array = if diff <= 1209600000 then eventsD else if diff < 15768000000 then eventsM else eventsY
+            array.push(
+              earliestEnd: end
+              latestStart: start
+              start: bob
+              end: eoe
+              durationEvent: binding.seob? || binding.sboe? || binding.sbob?.value != binding.seoe?.value
+              title: binding.slabel.value
+              description: if binding.sdescription? then binding.sdescription.value else ''
+            )
+          bandInfos = []
+          theme = Timeline.ClassicTheme.create!
+          theme.autoWidth = true
+          tsize = (eventsD.length+eventsM.length+eventsY.length)*100
+          if (tsize>0)
+            if (eventsD.length>0)
+              eventSourceD = new Timeline.DefaultEventSource!
+              eventSourceD.loadJSON(events:eventsD,'.')
+              bandInfos.push(Timeline.createBandInfo(
+                eventSource: eventSourceD
+                theme: theme
+                width: (tsize/eventsD.length)+"%"
+                intervalUnit: Timeline.DateTime.DAY
+                intervalPixels: 70
+              ))
+            if (eventsM.length>0)
+              eventSourceM = new Timeline.DefaultEventSource!
+              eventSourceM.loadJSON(events:eventsM,'.')
+              bandInfos.push(Timeline.createBandInfo(
+                eventSource: eventSourceM
+                theme: theme
+                width: (tsize/eventsM.length)+"%"
+                intervalUnit: Timeline.DateTime.MONTH
+                intervalPixels: 150
+              ))
+            if (eventsY.length>0)
+              eventSourceY = new Timeline.DefaultEventSource!
+              eventSourceY.loadJSON(events:eventsY,'.')
+              bandInfos.push(Timeline.createBandInfo(
+                eventSource: eventSourceY
+                theme: theme
+                width: (tsize/eventsY.length)+"%"
+                intervalUnit: Timeline.DateTime.YEAR
+                intervalPixels: 200
+              ))
+            for i from 1 til bandInfos.length
+              bandInfos[i].syncWith = i - 1
+              bandInfos[i].highlight = true
+            tl = Timeline.create($window.document.getElementById('timeline_'+(count:=count + 1)),bandInfos)
+            tl.getBand(0).setCenterVisibleDate(beg)
+            context.temporalQueries[id] = true
+            console.log(tsize,context.temporalQueries)
+    if (context.lat? && context.lng?) then
+      cancelers.locationQuery = $q.defer!
+      response <-! sparql.query($scope.sparqlEndpoint,$scope.locationQuery.replace(/<LAT>/g,context.lat).replace(/<LNG>/g,context.lng),{timeout: cancelers.locationQuery.promise}).then(_,handleError)
+      $scope.context.linkedLocations = []
       for binding in response.data.results.bindings
-        if (binding.description?)
-          context.descriptions.push({text:binding.description.value,class:binding.order.value})
-        if (binding.imageURL?)
-          context.imageURLs.push(binding.imageURL.value)
-        if (binding.lat?) then context.lat=binding.lat.value
-        if (binding.lng?) then context.lng=binding.lng.value
-        if (binding.bob?)
-          d = Date.parse(binding.bob.value)
-          if (!beg? || beg>d) then beg=d
-          if (!end? || end<d) then end=d
-        if (binding.eob?)
-          d = Date.parse(binding.eob.value)
-          if (!beg? || beg>d) then beg=d
-          if (!end? || end<d) then end=d
-        if (binding.boe?)
-          d = Date.parse(binding.boe.value)
-          if (!beg? || beg>d) then beg=d
-          if (!end? || end<d) then end=d
-        if (binding.eoe?)
-          d = Date.parse(binding.eoe.value)
-          if (!beg? || beg>d) then beg=d
-          if (!end? || end<d) then end=d
-      if (beg? && end?)
-        cancelers.temporalQuery = $q.defer!
-        response <-! sparql.query($scope.sparqlEndpoint,$scope.temporalQuery.replace(/<BEG>/g,beg).replace(/<END>/g,end),{timeout: cancelers.temporalQuery.promise}).then(_,handleError)
-        console.log("TEMPORAL:",response.data.results.bindings)
-      if (context.lat? && context.lng?) then
-        cancelers.locationQuery = $q.defer!
-        response <-! sparql.query($scope.sparqlEndpoint,$scope.locationQuery.replace(/<LAT>/g,context.lat).replace(/<LNG>/g,context.lng),{timeout: cancelers.locationQuery.promise}).then(_,handleError)
-        $scope.context.linkedLocations = []
-        for binding in response.data.results.bindings
-          $scope.context.linkedLocations.push({icon:icons[parseInt(binding.group.value)],concept:sparql.bindingToString(binding.concept),label:binding.label.value,lat:binding.lat.value,lng:binding.lng.value})
-    $scope.context=context
+        $scope.context.linkedLocations.push({icon:icons[parseInt(binding.group.value)],concept:sparql.bindingToString(binding.concept),label:binding.label.value,lat:binding.lat.value,lng:binding.lng.value})
     cancelers.relatedEntitiesQuery = $q.defer!
     response <-! sparql.query($scope.sparqlEndpoint,$scope.relatedEntitiesQuery.replace(/<CONCEPTS>/g,sconcepts),{timeout: cancelers.relatedEntitiesQuery.promise}).then(_,handleError)
     for binding in response.data.results.bindings then sconcepts += ' ' + sparql.bindingToString(binding.concept)
@@ -497,15 +686,13 @@ angular.module('app').controller 'MainCtrl', ($window,$scope, $state, $statePara
     labels = []
     for binding in response.data.results.bindings
       labels.push(sparql.bindingToString(binding.label))
-    if (beg?) then beg='"'+beg.toISOString! + '"^^<http://www.w3.org/2001/XMLSchema#dateTime>'
-    else beg = '"1914-01-01"^^<http://www.w3.org/2001/XMLSchema#date>'
-    if (end?) then end='"'+beg.toISOString! + '"^^<http://www.w3.org/2001/XMLSchema#dateTime>'
-    else end = '"1919-01-01"^^<http://www.w3.org/2001/XMLSchema#date>'
+    if (!begS?) then begS = '"1914-01-01"^^<http://www.w3.org/2001/XMLSchema#date>'
+    if (!endS?) then endS = '"1919-01-01"^^<http://www.w3.org/2001/XMLSchema#date>'
     linkedResources = {}
     for id1,q of $scope.relatedQueries
       let id = id1
         cancelers['linkedResourcesQuery_' + id] = $q.defer!
-        response <-! sparql.query(q.endpoint,q.query.replace(/<CONCEPTS>/g,sconcepts).replace(/<LABELS>/g,labels.join(" ").replace(/<BEG>/g,beg).replace(/<END>/g,end)),{timeout: cancelers['linkedResourcesQuery_' + id].promise}).then(_,handleError)
+        response <-! sparql.query(q.endpoint,q.query.replace(/<CONCEPTS>/g,sconcepts).replace(/<LABELS>/g,labels.join(" ").replace(/<BEG>/g,begS).replace(/<END>/g,endS)),{timeout: cancelers['linkedResourcesQuery_' + id].promise}).then(_,handleError)
         if (response.data.results.bindings.length>0)
           linkedResources[id]=[]
           groupOrder={}
@@ -641,7 +828,7 @@ angular.module('app').controller 'MainCtrl', ($window,$scope, $state, $statePara
     @renderingDone = true
     @updateMatches!
     if textDivsToAnalyze.length!=0 then runAnalysis(textDivsToAnalyze)
-  $window.webViewerLoad!
+  if ($scope.view=='pdf') then $window.webViewerLoad!
   if $stateParams.concepts?
-    if !($stateParams.concepts instanceof Array) then $stateParams.concepts=[$stateParams.concepts]
+    if !($stateParams.concepts instanceof Array) then $stateParams.concepts=$stateParams.concepts.split(',')
     openContext($stateParams.concepts)
