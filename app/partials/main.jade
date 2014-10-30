@@ -1,13 +1,13 @@
 script(type="text/ng-template",id="partials/concept.html")
-  a.concept(ng-mouseover="fetchInfo(concepts)",ng-click="openContext(concepts,label);$event.stopPropagation()",ng-class="'c'+class") {{ngram}} <div class="ui large popup top center transition mp visible-onhover">
+  span.concept(ng-mouseover="fetchInfo(concepts)",ng-click="openContext(concepts);$event.stopPropagation()",ng-class="'c'+class") {{ngram}} <div class="ui large popup top center transition mp visible-onhover">
     i.icon.loading(ng-show="loading!=2")
     .header {{label}}
     .content
-      img.image(ng-if="imageURL",src="{{imageURL}}")
+      img.image(ng-if="imageURL",ng-src="imageURL")
       static-gmap(ng-if="lat",size="250x200",sensor="false",zoom="8",markers="{ color: 'red',label:label,coords: [lat,lng]}")
       | {{gloss}}
     | </div>
-#documentviewer(ng-class="{ context : context }",ng-click="context=false")
+#documentviewer(ng-class="{ context : context }",ng-click="closeContext()")
   #pdfviewer(ng-show="view=='pdf'")
     include pdfviewer.jade
   iframe#htmlviewer(ng-show="view=='html'")
@@ -15,33 +15,49 @@ script(type="text/ng-template",id="partials/concept.html")
   h1 {{context.label}}
   |Sources:
   ul.ui.horizontal.bulleted.list: li.item(ng-repeat="concept in concepts"): a(href="{{concept.substring(1,concept.length-1)}}") {{concept}}
-  div: img(ng-repeat="imageURL in context.imageURLs",src="{{imageURL}}")
+  div: img(ng-repeat="imageURL in context.imageURLs",ng-src="imageURL")
   .description(ng-repeat="description in context.descriptions",ng-class="'c'+description.class") {{description.text}}
   div(ng-show="context.bob || context.eob || context.boe || context.eoe")
     h2 Timeline
-    div(ng-repeat="(title,q) in temporalQueries")
-      h4(ng-show="context.temporalQueries[title]") {{title}}
-      div(id="timeline_{{$index+1}}")
+    div(id="timeline")
+    span(ng-repeat="(id,col) in context.cmap",style="background-color:{{col}}") {{id}}
   div(ng-if="context.lat")
     h2 Location
     map(style="display:block;height:300px",zoom="8",center="[{{context.lat}},{{context.lng}}]")
       marker(position="[{{context.lat}},{{context.lng}}]",title="{{context.label}}")
-      marker(ng-repeat="location in context.linkedLocations" position="[{{location.lat}},{{location.lng}}]",title="{{location.label}}" icon="{{location.icon}}",on-click="openContext(location.concept,location.label)")
-  h2 Possibly Related Resources
-  div(ng-repeat="(title,groups) in context.linkedResources")
-    h3 {{title}}
+      marker(ng-repeat="location in context.linkedLocations" position="[{{location.lat}},{{location.lng}}]",title="{{location.label}}" icon="{{location.icon}}",on-click="openContext1(location.concept)")
+    span.c1 Places
+    span.c4 Events
+  div(ng-show="context.properties")
+    h2.ui.dividing.header Properties
+    table.ui.compact.table.segment
+      tbody
+        tr(ng-repeat="(property,objects) in context.properties")
+          td {{property}}
+          td
+            ul.ui.horizontal.bulleted.list: li.item(ng-repeat="object in objects")
+              a(ng-if="object.iri",href="",ng-click="openContext2(object.iri);$event.stopPropagation()") {{object.label}}
+              span(ng-if="!object.iri") {{object.label}}
+  h2.ui.dividing.header Possibly Related Resources
+  div(ng-show="context.relatedQueriesRunning==0 && context.linkedResourcesCount==0") No resources found.
+  .ui.segment(ng-repeat="(title,groups) in context.linkedResources")
+    h3.ui.dividing.header {{title}}
     div(ng-repeat="group in groups")
-      h4 {{group.group}}
+      h4.ui.header {{group.group}}
       .scroller.ui.horizontal.list
         .item(ng-repeat="res in group.resources")
           .group(ng-if="res.group")
             .content: .header {{res.group}}
           div(ng-if="!res.group")
-            a(ng-if="res.imageURL" href="{{res.url}}"): img(src="{{res.imageURL}}")
+            a(ng-if="res.imageURL",ui-sref="home({url:res.url})"): img(ng-src="res.imageURL")
             .content
-              a.header(href="{{res.url}}") {{res.label}}
+              a.header(href="",ui-sref="home({url:res.url})") {{res.label}}
               div {{res.description | limitTo:200 }}
               div.extra {{res.source}}
+  h2: i.icon.loading(ng-show="context.relatedQueriesRunning>0")
 #bottom
   span.c1 WW1LOD
-  span.c2 DBPedia
+  span.c2 PCDHN-LOD
+  span.c3 Trenches to Triples
+  span.c4 DBPedia
+  span.c5 Europeana

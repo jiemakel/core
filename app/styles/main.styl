@@ -1,3 +1,5 @@
+@import 'nib'
+
 body
   background-color : inherit
 
@@ -46,20 +48,29 @@ body
 .textLayer
   overflow:visible
 
-a.concept
+span.concept
   position: relative
   border: solid blue 1px
   white-space: pre
   cursor: pointer
 
-a.concept.c1, .c1
+span.concept.c1, .c1
   border : solid green 1px
 
-a.concept.c2, .c2
+span.concept.c2, .c2
   border : solid red 1px
 
-a.concept.c3, .c3
+span.concept.c3, .c3
   border : solid orange 1px
+
+span.concept.c4, .c4
+  border : solid blue 1px
+
+span.concept.c5, .c5
+  border : solid magenta 1px
+
+span.concept.c6, .c6
+  border : solid cyan 1px
 
 .popup
   white-space : normal
@@ -82,7 +93,7 @@ a.concept.c3, .c3
 .scroller .item img
   max-height:250px
 
-a:hover .visible-onhover
+.concept:hover .visible-onhover
   display:block
 
 div.description
@@ -93,3 +104,6 @@ div.description
   bottom:100% !important
   left:-125px !important
   top:auto !important
+
+.ng-hide
+  display: none !important
