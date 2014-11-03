@@ -2,6 +2,9 @@ angular.module('app').controller 'MainCtrl', ($window, $scope, $state, $location
   $window.PDFJS.workerSrc = 'bower_components/pdfjs-bower/dist/pdf.worker.js'
   iframe = $window.document.getElementById("htmlviewer")
   cd = iframe.contentDocument
+  cd.open!
+  cd.write('<html><head></head><body></body></html>')
+  cd.close!
   base = cd.createElement('base')
   cd.head.appendChild(base)
   loc = $window.location.protocol + '//' + $window.location.host + $window.location.pathname
@@ -207,6 +210,9 @@ angular.module('app').controller 'MainCtrl', ($window, $scope, $state, $location
             FILTER EXISTS { ?c a ?type }
             FILTER NOT EXISTS {
               ?c dbo:wikiPageDisambiguates ?other .
+            }
+            FILTER NOT EXISTS {
+              ?c a dbo:Album .
             }
             {
               ?c dbo:wikiPageRedirects ?concept .
@@ -635,7 +641,7 @@ angular.module('app').controller 'MainCtrl', ($window, $scope, $state, $location
     SELECT ?group ?concept ?label ?description ?imageURL ?lat ?lng ?polygon {
       {
         {
-          SELECT ?concept (STRDT(SAMPLE(?lat1),xsd:decimal) AS ?lat) (STRDT(SAMPLE(?lng1),xsd:decimal) AS ?lng) {
+          SELECT ?concept (STRDT(STR(SAMPLE(?lat1)),xsd:decimal) AS ?lat) (STRDT(STR(SAMPLE(?lng1)),xsd:decimal) AS ?lng) {
             ?concept wgs84:lat ?lat1 .
             ?concept wgs84:long ?lng1 .
           }
@@ -650,7 +656,7 @@ angular.module('app').controller 'MainCtrl', ($window, $scope, $state, $location
         BIND (1 AS ?group)
       } UNION {
         {
-          SELECT ?concept (STRDT(SAMPLE(?lat1),xsd:decimal) AS ?lat) (STRDT(SAMPLE(?lng1),xsd:decimal) AS ?lng) {
+          SELECT ?concept (STRDT(STR(SAMPLE(?lat1)),xsd:decimal) AS ?lat) (STRDT(STR(SAMPLE(?lng1)),xsd:decimal) AS ?lng) {
             ?place wgs84:lat ?lat1 .
             ?place wgs84:long ?lng1 .
             ?concept crm:P7_took_place_at ?place .
@@ -827,12 +833,11 @@ angular.module('app').controller 'MainCtrl', ($window, $scope, $state, $location
             arr.push({label:binding.objectLabel.value})
     cancelers.infoQuery = $q.defer!
     response <-! sparql.query($scope.sparqlEndpoint,$scope.infoQuery.replace(/<CONCEPTS>/g,sconcepts),{timeout: cancelers.infoQuery.promise}).then(_,handleError)
+    descs = {}
     for binding in response.data.results.bindings
       if (binding.label? && !context.label?) then context.label=binding.label.value
-      descs = {}
-      if (binding.description? && !descs[binding.description.value])
-        descs[binding.description.value]=true
-        context.descriptions.push({text:binding.description.value,class:binding.order.value})
+      if (binding.description? && !descs[binding.description.value]?)
+        descs[binding.description.value]={text:binding.description.value,class:binding.order.value}
       if binding.imageURL? && !(binding.imageURL.value in context.imageURLs)
         context.imageURLs.push(binding.imageURL.value)
       if (binding.lat?) then context.lat=binding.lat.value
@@ -857,6 +862,8 @@ angular.module('app').controller 'MainCtrl', ($window, $scope, $state, $location
         d = new Date(binding.eoe.value)
         if (!beg? || beg>d) then beg=d
         if (!end? || end<d) then end=d
+    for v,desc of descs
+      context.descriptions.push(desc)
     if (beg? && end?)
       begS='"'+beg.toISOString! + '"^^<http://www.w3.org/2001/XMLSchema#dateTime>'
       endS='"'+end.toISOString! + '"^^<http://www.w3.org/2001/XMLSchema#dateTime>'
@@ -955,6 +962,7 @@ angular.module('app').controller 'MainCtrl', ($window, $scope, $state, $location
       response <-! sparql.query($scope.sparqlEndpoint,$scope.locationQuery.replace(/<LAT>/g,context.lat).replace(/<LNG>/g,context.lng),{timeout: cancelers.locationQuery.promise}).then(_,handleError)
       $scope.context.linkedLocations = []
       for binding in response.data.results.bindings
+
         $scope.context.linkedLocations.push({icon:icons[parseInt(binding.group.value)],concept:sparql.bindingToString(binding.concept),label:binding.label.value,lat:binding.lat.value,lng:binding.lng.value})
     cancelers.relatedEntitiesQuery = $q.defer!
     response <-! sparql.query($scope.sparqlEndpoint,$scope.relatedEntitiesQuery.replace(/<CONCEPTS>/g,sconcepts),{timeout: cancelers.relatedEntitiesQuery.promise}).then(_,handleError)
@@ -1156,24 +1164,27 @@ angular.module('app').controller 'MainCtrl', ($window, $scope, $state, $location
     openContext($stateParams.concepts)
   if (!$stateParams.url?) then $state.go('home',{url:'http://media.onki.fi/0/0/0/ww1/i71780828.pdf'})
   else
-    url = $stateParams.url
     if (!$scope.context)
-      response <-! sparql.query($scope.sparqlEndpoint,$scope.redirectQuery.replace(/<ID>/g,'<'+url+'>')).then(_,handleError)
+      response <-! sparql.query($scope.sparqlEndpoint,$scope.redirectQuery.replace(/<ID>/g,'<'+$stateParams.url+'>')).then(_,handleError)
       if (response.data.results.bindings.length==1) then openContext([sparql.bindingToString(response.data.results.bindings[0].id)],true)
+    console.log(cd.body)
+    cd.body.innerHTML = '<h2><i class="icon loading"></i></h2>'
+    console.log(cd.body)
+    response <-! $http.head($stateParams.url.replace(/^http:\/\//,'http://ldf.fi/corsproxy/'),headers:{Accept:'application/pdf,text/html,application/xhtml+xml,text/plain;q=0.9,*/*;q=0.8'}).then(_,handleError)
+    url = response.headers('X-Location')
+    $scope.url = url
     $location.search('url',url)
-    response <-! $http.head(url,headers:{Accept:'application/pdf,text/html,application/xhtml+xml,text/plain;q=0.9,*/*;q=0.8'}).then(_,handleError)
     if url == /.pdf$/i or response.headers!['content-type'] == 'application/pdf'
       $scope.view='pdf'
       $window.DEFAULT_URL = url
       $window.webViewerLoad!
     else
       $scope.view='html'
-      cd.body.innerHTML = '<h2><i class="icon loading"></i></h2>'
       response <-! $http.get(url,headers:{Accept:'text/html,application/xhtml+xml,text/plain;q=0.9,*/*;q=0.8'}).then(_,handleError)
       iframe = $window.document.getElementById("htmlviewer")
       base.setAttribute('href',url.substring(0,url.lastIndexOf('/')+1))
       cd.body.innerHTML = response.data
-      angular.element(window.document.getElementById("htmlviewer").contentDocument.body).find('a[href^="http"]').click (event) !->
+      angular.element(cd.body).find('a').click (event) !->
         $state.go('home',{url:event.target.href})
         event.preventDefault!
       angular.element(cd.body).find('p,div,span').contents().filter(-> this.nodeType == 3 && this.parentNode.childNodes.length>1).replaceWith ->

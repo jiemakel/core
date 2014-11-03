@@ -3,19 +3,21 @@ script(type="text/ng-template",id="partials/concept.html")
     i.icon.loading(ng-show="loading!=2")
     .header {{label}}
     .content
-      img.image(ng-if="imageURL",ng-src="imageURL")
+      img.image(ng-if="imageURL",ng-src="{{imageURL}}")
       static-gmap(ng-if="lat",size="250x200",sensor="false",zoom="8",markers="{ color: 'red',label:label,coords: [lat,lng]}")
       | {{gloss}}
     | </div>
 #documentviewer(ng-class="{ context : context }",ng-click="closeContext()")
+  a(ng-href="{{url}}",target="_blank") {{url}}
   #pdfviewer(ng-show="view=='pdf'")
     include pdfviewer.jade
-  iframe#htmlviewer(ng-show="view=='html'")
+  div(ng-show="view=='html'")
+    iframe#htmlviewer
 #context(ng-class="context ? 'context' : ''"): #context2
   h1 {{context.label}}
   |Sources:
   ul.ui.horizontal.bulleted.list: li.item(ng-repeat="concept in concepts"): a(href="{{concept.substring(1,concept.length-1)}}") {{concept}}
-  div: img(ng-repeat="imageURL in context.imageURLs",ng-src="imageURL")
+  div: img(ng-repeat="imageURL in context.imageURLs",ng-src="{{imageURL}}")
   .description(ng-repeat="description in context.descriptions",ng-class="'c'+description.class") {{description.text}}
   div(ng-show="context.bob || context.eob || context.boe || context.eoe")
     h2 Timeline
@@ -49,9 +51,9 @@ script(type="text/ng-template",id="partials/concept.html")
           .group(ng-if="res.group")
             .content: .header {{res.group}}
           div(ng-if="!res.group")
-            a(ng-if="res.imageURL",ui-sref="home({url:res.url})"): img(ng-src="res.imageURL")
+            a(ng-if="res.imageURL",ui-sref="home({url:res.url,concepts:void})"): img(ng-src="{{res.imageURL}}")
             .content
-              a.header(href="",ui-sref="home({url:res.url})") {{res.label}}
+              a.header(href="",ui-sref="home({url:res.url,concepts:void})") {{res.label}}
               div {{res.description | limitTo:200 }}
               div.extra {{res.source}}
   h2: i.icon.loading(ng-show="context.relatedQueriesRunning>0")
