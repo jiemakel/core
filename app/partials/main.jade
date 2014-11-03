@@ -8,7 +8,10 @@ script(type="text/ng-template",id="partials/concept.html")
       | {{gloss}}
     | </div>
 #documentviewer(ng-class="{ context : context }",ng-click="closeContext()")
-  a(ng-href="{{url}}",target="_blank") {{url}}
+  input(style="width:500px" ng-show="editURL",type="text",ng-model="editURL",ng-enter="url=editURL;editURL=null",ng-blur="url=editURL;editURL=null")
+  a(ng-show="!editURL",ng-href="{{url}}",target="_blank") {{url}}
+  button.ui.mini.button(ng-show="!editURL",ng-click="editURL=url") Edit
+  button.ui.mini.button(ng-show="editURL",ng-click="url=editURL;editURL=null") Go
   #pdfviewer(ng-show="view=='pdf'")
     include pdfviewer.jade
   div(ng-show="view=='html'")
@@ -51,9 +54,9 @@ script(type="text/ng-template",id="partials/concept.html")
           .group(ng-if="res.group")
             .content: .header {{res.group}}
           div(ng-if="!res.group")
-            a(ng-if="res.imageURL",ui-sref="home({url:res.url,concepts:void})"): img(ng-src="{{res.imageURL}}")
+            a(ng-if="res.imageURL",ui-sref="home({url:res.url})"): img(ng-src="{{res.imageURL}}")
             .content
-              a.header(href="",ui-sref="home({url:res.url,concepts:void})") {{res.label}}
+              a.header(href="",ui-sref="home({url:res.url})") {{res.label}}
               div {{res.description | limitTo:200 }}
               div.extra {{res.source}}
   h2: i.icon.loading(ng-show="context.relatedQueriesRunning>0")

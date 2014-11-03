@@ -1159,17 +1159,17 @@ angular.module('app').controller 'MainCtrl', ($window, $scope, $state, $location
     @renderingDone = true
     @updateMatches!
     if textDivsToAnalyze.length!=0 then runAnalysis(textDivsToAnalyze)
-  if $stateParams.concepts?
-    if !($stateParams.concepts instanceof Array) then $stateParams.concepts=$stateParams.concepts.split(',')
-    openContext($stateParams.concepts)
+  $scope.$watch 'url', (url,ourl) !-> if url!=ourl then $state.go('home',{url})
+  $scope.concepts = $location.search!.concepts
+  if $scope.concepts?
+    if !($scope.concepts instanceof Array) then $scope.concepts=$scope.concepts.split(',')
+    openContext($scope.concepts)
   if (!$stateParams.url?) then $state.go('home',{url:'http://media.onki.fi/0/0/0/ww1/i71780828.pdf'})
   else
     if (!$scope.context)
       response <-! sparql.query($scope.sparqlEndpoint,$scope.redirectQuery.replace(/<ID>/g,'<'+$stateParams.url+'>')).then(_,handleError)
       if (response.data.results.bindings.length==1) then openContext([sparql.bindingToString(response.data.results.bindings[0].id)],true)
-    console.log(cd.body)
     cd.body.innerHTML = '<h2><i class="icon loading"></i></h2>'
-    console.log(cd.body)
     response <-! $http.head($stateParams.url.replace(/^http:\/\//,'http://ldf.fi/corsproxy/'),headers:{Accept:'application/pdf,text/html,application/xhtml+xml,text/plain;q=0.9,*/*;q=0.8'}).then(_,handleError)
     url = response.headers('X-Location')
     $scope.url = url
