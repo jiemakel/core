@@ -687,12 +687,15 @@ angular.module('app').controller 'MainCtrl', ($window, $scope, $state, $location
         openContext(concepts)
         return
   $scope.relatedQueries = {
+    'WW1 Discovery' :
+      type : 'SOLR'
+      endpoint : 'http://ldf.fi/corsproxy/discovery.ac.uk/ww1/api/?q=<QUERY>&wt=json'
     'The European Library' :
       type : 'OpenSearch'
-      endpoint : 'http://data.theeuropeanlibrary.org/opensearch/json?query=<QUERY>&count=100&apikey=ct1b9u3jqll2lvfde8k4n7fm3k&'
+      endpoint : 'http://ldf.fi/corsproxy/http://data.theeuropeanlibrary.org/opensearch/json?query=<QUERY>&count=100&apikey=ct1b9u3jqll2lvfde8k4n7fm3k&'
     'DPLA' :
       type : 'Europeana'
-      endpoint : 'http://api.dp.la/v2/items?q=<QUERY>&page_size=200&api_key=c731bfd7f8038e0574a1b0dc22f2262a'
+      endpoint : 'http://ldf.fi/corsproxy/http://api.dp.la/v2/items?q=<QUERY>&page_size=200&api_key=c731bfd7f8038e0574a1b0dc22f2262a'
     'Colorado WW1 Collection' :
       endpoint : 'http://ldf.fi/colorado-ww1/sparql'
       query : '''
@@ -806,6 +809,9 @@ angular.module('app').controller 'MainCtrl', ($window, $scope, $state, $location
       scope.loading=2
   icons = ['http://maps.google.com/mapfiles/ms/icons/blue-dot.png','http://maps.google.com/mapfiles/ms/icons/green-dot.png','http://maps.google.com/mapfiles/ms/icons/orange-dot.png','http://maps.google.com/mapfiles/ms/icons/pink-dot.png','http://maps.google.com/mapfiles/ms/icons/purple-dot.png']
   !function openContext(concepts,replace)
+    cs = {}
+    for concept in concepts then cs[concept]=concept
+    concepts = for concept of cs then concept
     if replace then $location.replace!
     $location.search('concepts',concepts)
     context = {}
@@ -1025,12 +1031,29 @@ angular.module('app').controller 'MainCtrl', ($window, $scope, $state, $location
           --context.relatedQueriesRunning
           lrmap={}
           linkedResources[id]=[]
-          if (q.type=='Europeana')
+          if q.type=='Europeana'
             for doc in response.data.docs
               lrmap.{}[doc.sourceResource.language?[0].name].[][doc.sourceResource.type].push({url:doc.isShownAt,imageURL:doc.object,description:(if Array.isArray(doc.sourceResource.description) then doc.sourceResource.description.join(', ') else doc.sourceResource.description),source:doc.provider.name,label:if Array.isArray(doc.sourceResource.title) then doc.sourceResource.title.join(', ') else doc.sourceResource.title})
-          else
+          else if q.type=='OpenSearch'
             for doc in response.data.Results
               lrmap.{}[doc.LANGUAGE[0]].[][''].push({url:doc.URI,imageURL:doc.THUMBNAIL?[0],description:doc.TOPIC?.join(', '),label:doc.TITLE.join(', ')})
+          else
+            for doc in response.data.response.result.doc
+              infos = []
+              for info in doc.str ? []
+                switch info['@name']
+                case "JISCDiscovery.previewMediaAbsolutePath" then imageURL=info.$t
+                case "dc.identifier" then url = info.$t
+                case "dcterms.relation" then url = info.$t
+                case "dc.description" then description = info.$t
+                case "dc.title" then label = info.$t
+              for info in doc.arr ? []
+                switch info['@name']
+                case "JISCDiscovery.previewMediaAbsolutePath" then imageURL=(info.str ? info).$t
+                case "dc.identifier" then url = (info.str ? info).$t
+                case "dc.description" then description = (info.str ? info).$t
+                case "dc.title" then label = (info.str ? info).$t
+              lrmap.{}[doc['@source']].[][''].push({url,imageURL,description,label})
           for lang,typeMap of lrmap
             gr = {group:lang,resources:[]}
             for type,values of typeMap
@@ -1048,8 +1071,10 @@ angular.module('app').controller 'MainCtrl', ($window, $scope, $state, $location
     openContext(concepts)
   $window.openContext = $scope.openContext2
   $scope.sparqlEndpoint = 'http://ldf.fi/ww1lod/sparql'
+  $scope.errors=0
   !function handleError(response)
     console.log(response)
+    $scope.errors++
   !function runAnalysis(textDivs)
     texts = [textDiv.textContent for textDiv in textDivs]
     lastIndex = 0
@@ -1060,7 +1085,9 @@ angular.module('app').controller 'MainCtrl', ($window, $scope, $state, $location
         cLastIndex = text2.match(/\s+/g)?.length ? 0
         if (cLastIndex>lastIndex) then lastIndex=cLastIndex
     query = $scope.findQuery.replace(/<WORD_INDICES>/g,[0 to lastIndex].join(" ")).replace(/<TEXTS>/g,escapedTexts)
+    $scope.findQueryRunning = true
     response <-! sparql.query($scope.sparqlEndpoint,query).then(_,handleError)
+    $scope.findQueryRunning = false
     ngramsToConcepts = {}
     for binding in response.data.results.bindings
       if (!ngramsToConcepts[binding.ngram.value]?) then ngramsToConcepts[binding.ngram.value]=[]
@@ -1159,7 +1186,7 @@ angular.module('app').controller 'MainCtrl', ($window, $scope, $state, $location
     @renderingDone = true
     @updateMatches!
     if textDivsToAnalyze.length!=0 then runAnalysis(textDivsToAnalyze)
-  $scope.$watch 'url', (url,ourl) !-> if url!=ourl then $state.go('home',{url})
+  $scope.$watch 'url', (url,ourl) !-> if ourl? && url!=ourl then $state.go('home',{url})
   $scope.concepts = $location.search!.concepts
   if $scope.concepts?
     if !($scope.concepts instanceof Array) then $scope.concepts=$scope.concepts.split(',')

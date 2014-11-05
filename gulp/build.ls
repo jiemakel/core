@@ -37,8 +37,8 @@ gulp.task "partials", <[templates]>, ->
     ))
     .pipe(gulp.dest(".tmp/partials"))
 
-gulp.task "clean", ->
-  gulp.src(<[.tmp dist]>,read: false).pipe($.rimraf!)
+gulp.task "clean", (cb) ->
+  require('del') <[.tmp dist]>, cb
 
 gulp.task "build", (cb) ->
   require("run-sequence") \clean, <[wiredep templates styles scripts partials]>, cb

@@ -8,10 +8,10 @@ script(type="text/ng-template",id="partials/concept.html")
       | {{gloss}}
     | </div>
 #documentviewer(ng-class="{ context : context }",ng-click="closeContext()")
-  input(style="width:500px" ng-show="editURL",type="text",ng-model="editURL",ng-enter="url=editURL;editURL=null",ng-blur="url=editURL;editURL=null")
-  a(ng-show="!editURL",ng-href="{{url}}",target="_blank") {{url}}
-  button.ui.mini.button(ng-show="!editURL",ng-click="editURL=url") Edit
-  button.ui.mini.button(ng-show="editURL",ng-click="url=editURL;editURL=null") Go
+  input(style="width:500px" ng-show="editURL!=undefined",type="text",ng-model="editURL",ng-enter="url=editURL;editURL=undefined")
+  a(ng-show="editURL==undefined",ng-href="{{url}}",target="_blank") {{url}}
+  button.ui.mini.button(ng-show="editURL==undefined",ng-click="editURL=url") Edit
+  button.ui.mini.button(ng-show="editURL!=undefined",ng-click="url=editURL;editURL=undefined") Go
   #pdfviewer(ng-show="view=='pdf'")
     include pdfviewer.jade
   div(ng-show="view=='html'")
@@ -66,3 +66,9 @@ script(type="text/ng-template",id="partials/concept.html")
   span.c3 Trenches to Triples
   span.c4 DBPedia
   span.c5 Europeana
+  span(ng-show="findQueryRunning",style="padding-left:0.5em")
+    i.icon.loading
+    | Querying for context
+  span(ng-show="errors>0",style="padding-left:0.5em")
+    i.icon.attention
+    | {{errors}} errors have occurred while loading information.
