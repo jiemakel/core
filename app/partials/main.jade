@@ -5,70 +5,78 @@ script(type="text/ng-template",id="partials/concept.html")
     .content
       img.image(ng-if="imageURL",ng-src="{{imageURL}}")
       static-gmap(ng-if="lat",size="250x200",sensor="false",zoom="8",markers="{ color: 'red',label:label,coords: [lat,lng]}")
-      | {{gloss}}
+      div(ng-bind-html="gloss")
     | </div>
-#documentviewer(ng-class="{ context : context }",ng-click="closeContext()")
-  input(style="width:500px" ng-show="editURL!=undefined",type="text",ng-model="editURL",ng-enter="url=editURL;editURL=undefined")
-  a(ng-show="editURL==undefined",ng-href="{{url}}",target="_blank") {{url}}
-  button.ui.mini.button(ng-show="editURL==undefined",ng-click="editURL=url") Edit
-  button.ui.mini.button(ng-show="editURL!=undefined",ng-click="url=editURL;editURL=undefined") Go
-  #pdfviewer(ng-show="view=='pdf'")
-    include pdfviewer.jade
-  div(ng-show="view=='html'")
-    iframe#htmlviewer
-#context(ng-class="context ? 'context' : ''"): #context2
-  h1 {{context.label}}
-  |Sources:
-  ul.ui.horizontal.bulleted.list: li.item(ng-repeat="concept in concepts"): a(href="{{concept.substring(1,concept.length-1)}}") {{concept}}
-  div: img(ng-repeat="imageURL in context.imageURLs",ng-src="{{imageURL}}")
-  .description(ng-repeat="description in context.descriptions",ng-class="'c'+description.class") {{description.text}}
-  div(ng-show="context.bob || context.eob || context.boe || context.eoe")
-    h2 Timeline
-    div(id="timeline")
-    span(ng-repeat="(id,col) in context.cmap",style="background-color:{{col}}") {{id}}
-  div(ng-if="context.lat")
-    h2 Location
-    map(style="display:block;height:300px",zoom="8",center="[{{context.lat}},{{context.lng}}]")
-      marker(position="[{{context.lat}},{{context.lng}}]",title="{{context.label}}")
-      marker(ng-repeat="location in context.linkedLocations" position="[{{location.lat}},{{location.lng}}]",title="{{location.label}}" icon="{{location.icon}}",on-click="openContext1(location.concept)")
-    span.c1 Places
-    span.c4 Events
-  div(ng-show="context.properties")
-    h2.ui.dividing.header Properties
-    table.ui.compact.table.segment
-      tbody
-        tr(ng-repeat="(property,objects) in context.properties")
-          td {{property}}
-          td
-            ul.ui.horizontal.bulleted.list: li.item(ng-repeat="object in objects")
-              a(ng-if="object.iri",href="",ng-click="openContext2(object.iri);$event.stopPropagation()") {{object.label}}
-              span(ng-if="!object.iri") {{object.label}}
-  h2.ui.dividing.header Possibly Related Resources
-  div(ng-show="context.relatedQueriesRunning==0 && context.linkedResourcesCount==0") No resources found.
-  .ui.segment(ng-repeat="(title,groups) in context.linkedResources")
-    h3.ui.dividing.header {{title}}
-    div(ng-repeat="group in groups")
-      h4.ui.header {{group.group}}
-      .scroller.ui.horizontal.list
-        .item(ng-repeat="res in group.resources")
-          .group(ng-if="res.group")
-            .content: .header {{res.group}}
-          div(ng-if="!res.group")
-            a(ng-if="res.imageURL",ui-sref="home({url:res.url})"): img(ng-src="{{res.imageURL}}")
-            .content
-              a.header(href="",ui-sref="home({url:res.url})") {{res.label}}
-              div {{res.description | limitTo:200 }}
-              div.extra {{res.source}}
-  h2: i.icon.loading(ng-show="context.relatedQueriesRunning>0")
+div(ui-layout="{flow:'column'}")
+  div(ui-layout-container,size="{{context ? '60%' : '100%'}}",ng-click="closeContext()")
+    input(style="width:500px" ng-show="editURL!=undefined",type="text",ng-model="editURL",ng-enter="url=editURL;editURL=undefined")
+    a(ng-show="editURL==undefined",ng-href="{{url}}",target="_blank") {{url}}
+    button.ui.mini.button(ng-show="editURL==undefined",ng-click="editURL=url") Edit
+    button.ui.mini.button(ng-show="editURL!=undefined",ng-click="url=editURL;editURL=undefined") Go
+    #pdfviewer(ng-show="view=='pdf'")
+      include pdfviewer.jade
+    div(ng-show="view=='html'")
+      iframe#htmlviewer
+  div(ui-layout-container,size="{{context ? '40%' : '0%'}}",collapsed="true")
+    h1 {{context.label}}
+    |Sources:
+    ul.ui.horizontal.bulleted.list: li.item(ng-repeat="concept in concepts"): a(href="{{concept.substring(1,concept.length-1)}}") {{concept}}
+    div: img(ng-repeat="imageURL in context.imageURLs",ng-src="{{imageURL}}")
+    .description(ng-repeat="description in context.descriptions",ng-class="'c'+description.class") {{description.text}}
+    div(ng-show="context.bob || context.eob || context.boe || context.eoe")
+      h2 Timeline
+      div(id="timeline")
+      span(ng-repeat="(id,col) in context.cmap",style="background-color:{{col}}") {{id}}
+    div(ng-if="context.lat")
+      h2 Location
+      map(style="display:block;height:300px",zoom="8",center="[{{context.lat}},{{context.lng}}]")
+        marker(position="[{{context.lat}},{{context.lng}}]",title="{{context.label}}")
+        marker(ng-repeat="location in context.linkedLocations" position="[{{location.lat}},{{location.lng}}]",title="{{location.label}}" icon="{{location.icon}}",on-click="openContext1(location.concept)")
+      span(ng-repeat="(sourceId,query) in configuration.locationQueries",ng-class="'c'+(sourceId+1)") {{query.name}}
+    div(ng-show="context.properties")
+      h2.ui.dividing.header Properties
+      table.ui.compact.table.segment
+        tbody
+          tr(ng-repeat="(property,objects) in context.properties")
+            td {{property}}
+            td
+              ul.ui.horizontal.bulleted.list: li.item(ng-repeat="object in objects")
+                a(ng-if="object.iri",href="",ng-click="openContext2(object.iri);$event.stopPropagation()") {{object.label}}
+                span(ng-if="!object.iri") {{object.label}}
+    h2.ui.dividing.header Related Resources
+    div(ng-show="context.relatedQueriesRunning==0 && context.linkedResourcesCount==0") No resources found.
+    .ui.segment(ng-repeat="data in context.linkedResources | filter:{title:'!undefined'}")
+      h3.ui.dividing.header {{data.title}}
+      div(ng-repeat="group in data.groups")
+        h4.ui.header {{group.group}}
+        .scroller.ui.horizontal.list
+          .item(ng-repeat="res in group.resources")
+            .group(ng-if="res.group")
+              .content: .header {{res.group}}
+            div(ng-if="!res.group")
+              a(ng-if="res.imageURL",ui-sref="home({url:res.url})"): img(ng-src="{{res.imageURL}}")
+              .content
+                a.header(href="",ui-sref="home({url:res.url})") {{res.label}}
+                div {{res.description | limitTo:200 }}
+                div.extra {{res.source}}
+    h2: i.icon.loading(ng-show="context.relatedQueriesRunning>0")
 #bottom
-  span.c1 WW1LOD
-  span.c2 PCDHN-LOD
-  span.c3 Trenches to Triples
-  span.c4 DBPedia
-  span.c5 Europeana
+  span(ng-repeat="source in configuration.sources")
+    span(ng-class="'c'+($index+1)") {{source}}
+    | &nbsp;
   span(ng-show="findQueryRunning",style="padding-left:0.5em")
     i.icon.loading
     | Querying for context
-  span(ng-show="errors>0",style="padding-left:0.5em")
+  span.concept(ng-show="errors.length!=0",style="padding-left:0.5em")
     i.icon.attention
-    | {{errors}} errors have occurred while loading information.
+    | {{errors.length}} errors have occurred while loading information. <div class="ui large popup top center transition mp visible-onhover">
+    div(ng-repeat="error in errors")
+      | {{error.errorSource}} returned error {{error.errorStatus}}:
+      br
+      | {{error.errorMessage}}
+      br
+      | for request:
+      br
+      | {{error.errorRequest}}
+    | </div>
+

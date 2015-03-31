@@ -3,10 +3,6 @@
 body
   background-color : inherit
 
-#documentviewer.context
-  width:444px
-  display:inline-block
-
 #documentviewer
   position:absolute
   background-color : #404040
@@ -28,21 +24,8 @@ body
   background-image: linear-gradient(hsla(0,0%,27%,.95),hsla(0,0%,32%,.99))
   box-shadow: inset -1px 0 0 hsla(0,0%,100%,.08), inset 0 -1px 1px hsla(0,0%,0%,.15), inset 0 1px 0 hsla(0,0%,100%,.05), 0 -1px 0 hsla(0,0%,0%,.15), 0 -1px 1px hsla(0,0%,0%,.1)
   bottom:0
-  z-index:1
+  z-index:1011
   width:100%
-
-#context.context
-  display:inline-block
-
-#context
-  display:none
-  position:absolute
-  left:444px
-  right:0px
-  padding: 1.5em
-  height:87%
-  overflow:scroll
-  border-left: solid black 3px
 
 .textLayer
   overflow:visible
@@ -99,10 +82,15 @@ div.description
   margin: 5pt 0pt
 
 .mp
-  width:250px
+  width:400px !important
+  max-width:400px !important
   bottom:100% !important
-  left:-125px !important
+  left:-175px !important
   top:auto !important
 
 .ng-hide
   display: none !important
+
+.popup .content
+  font-size: 10pt
+  line-height: 1

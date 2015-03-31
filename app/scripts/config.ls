@@ -1,5 +1,5 @@
 var loaded
-angular.module('app', ['ngMap','wu.staticGmap','angularify.semantic.popup', 'ui.router', 'fi.seco.prefix', 'fi.seco.sparql','fi.seco.cors-proxy-interceptor'])
+angular.module('app', ['ngMap','ngSanitize','wu.staticGmap', 'ui.router', 'ui.layout', 'fi.seco.prefix', 'fi.seco.sparql','fi.seco.cors-proxy-interceptor'])
   .config ($stateProvider, $urlRouterProvider) !->
     $stateProvider.state 'home',
       url: '/?url'
