@@ -278,7 +278,9 @@ angular.module('app').controller 'MainCtrl', ($window, $scope, $state, $location
           response <-! $http.get(q.endpoint.replace(/<QUERY>/g,encodeURI(larr.join(' OR ')))).then(_,handleError)
           --context.relatedQueriesRunning
           lrmap={}
-          res= []
+          res=
+            title: q.name
+            groups: []
           if q.type=='Europeana'
             for doc in response.data.docs
               lrmap.{}[doc.sourceResource.language?[0].name].[][doc.sourceResource.type].push({url:doc.isShownAt,imageURL:doc.object,description:(if Array.isArray(doc.sourceResource.description) then doc.sourceResource.description.join(', ') else doc.sourceResource.description),source:doc.provider.name,label:if Array.isArray(doc.sourceResource.title) then doc.sourceResource.title.join(', ') else doc.sourceResource.title})
@@ -308,7 +310,7 @@ angular.module('app').controller 'MainCtrl', ($window, $scope, $state, $location
               if (type!='') then gr.resources.push({group:type})
               for value in values
                 gr.resources.push(value)
-            res.push(gr)
+            res.groups.push(gr)
           context.linkedResources[id]=res
   $scope.openContext1 = (event,concept) !-> $scope.openContext2(concept)
   $scope.openContext2 = (concept) !->
