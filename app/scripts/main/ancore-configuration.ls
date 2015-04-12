@@ -1,15 +1,19 @@
 angular.module('app').value 'configuration',
   sparqlEndpoint : 'http://ldf.fi/ancore/sparql'
-  defaultURL : 'http://www.perseus.tufts.edu/hopper/text?doc=Perseus:text:1999.01.0004'
+  defaultURL : 'http://www.perseus.tufts.edu/hopper/text?doc=Perseus%3Atext%3A1999.02.0001%3Abook%3D1%3Achapter%3D1' #'http://www.gutenberg.org/files/226/226-h/226-h.htm'
   # used to locate the IRI corressponding to the document metadata when opening a document URL for reading
   findURL : 'http://demo.seco.tkk.fi/arpa/ancore'
-  sources : [ 'Pleiades', 'DBPedia' ]
+  sources : [ 'Pleiades', 'DBPedia', 'Latin DBPedia' ]
   # used to locate the IRI corressponding to the document metadata when opening a document URL for reading
   findContextByDocumentURLQuery : '''
     PREFIX foaf: <http://xmlns.com/foaf/0.1/>
     SELECT ?id {
-      BIND(STR(<ID>) AS ?page)
-      ?id foaf:page ?page .
+      {
+        BIND(STR(<ID>) AS ?page)
+        ?id foaf:page ?page .
+      } UNION {
+        ?id foaf:page <ID> .
+      }
     }
     LIMIT 1
   '''
@@ -17,9 +21,10 @@ angular.module('app').value 'configuration',
   expandEquivalentConceptsQuery : '''
     PREFIX skos: <http://www.w3.org/2004/02/skos/core#>
     PREFIX owl: <http://www.w3.org/2002/07/owl#>
+    PREFIX foaf: <http://xmlns.com/foaf/0.1/>
     SELECT DISTINCT ?concept {
       {
-        <ID> (owl:sameAs|^owl:sameAs|skos:exactMatch|^skos:exactMatch)* ?concept .
+        <ID> (owl:sameAs|^owl:sameAs|skos:exactMatch|^skos:exactMatch|foaf:primaryTopicOf|^foaf:primaryTopicOf)* ?concept .
       } UNION {
         SERVICE <http://ldf.fi/dbpedia/sparql> {
           <ID> (owl:sameAs|^owl:sameAs|skos:exactMatch|^skos:exactMatch)* ?concept .
@@ -142,6 +147,7 @@ angular.module('app').value 'configuration',
     PREFIX skos: <http://www.w3.org/2004/02/skos/core#>
     PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
     PREFIX dc: <http://purl.org/dc/elements/1.1/>
+    PREFIX dct: <http://purl.org/dc/terms/>
     PREFIX crm: <http://www.cidoc-crm.org/cidoc-crm/>
     PREFIX dbo: <http://dbpedia.org/ontology/>
     PREFIX wgs84: <http://www.w3.org/2003/01/geo/wgs84_pos#>
@@ -155,18 +161,18 @@ angular.module('app').value 'configuration',
           <CONCEPTS>
         }
         OPTIONAL {
-          ?concept skos:prefLabel ?llabel .
+          ?concept skos:prefLabel|rdfs:label|dct:title ?llabel .
           FILTER(LANG(?llabel)="en")
         }
         OPTIONAL {
-          ?concept skos:prefLabel ?dlabel .
+          ?concept skos:prefLabel|rdfs:label|dct:title ?dlabel .
           FILTER(LANG(?dlabel)="")
         }
         OPTIONAL {
-          ?concept skos:prefLabel ?alabel .
+          ?concept skos:prefLabel|rdfs:label|dct:title ?alabel .
         }
         OPTIONAL {
-          ?concept dc:description ?description .
+          ?concept dct:description ?description .
           BIND(1 AS ?order)
         }
         OPTIONAL {
@@ -218,44 +224,49 @@ angular.module('app').value 'configuration',
     }
   '''
   temporalQueries : {
-    'Other Events Near Location' :
-      endpoint : 'http://ldf.fi/ww1lod/sparql'
+    'Coins Found from Location' :
+      endpoint : 'http://ldf.fi/ancore/sparql'
       query : '''
-        PREFIX dc: <http://purl.org/dc/elements/1.1/>
-        PREFIX crm: <http://www.cidoc-crm.org/cidoc-crm/>
-        PREFIX xsd: <http://www.w3.org/2001/XMLSchema#>
-        PREFIX wgs84: <http://www.w3.org/2003/01/geo/wgs84_pos#>
-        PREFIX skos: <http://www.w3.org/2004/02/skos/core#>
-        SELECT ?concept (SAMPLE(?label) AS ?slabel) (SAMPLE(?description) AS ?sdescription) (SAMPLE(?imageURL) AS ?simageURL) (SAMPLE(?bob) AS ?sbob) (SAMPLE(?eob) AS ?seob) (SAMPLE(?boe) AS ?sboe) (SAMPLE(?eoe) AS ?seoe) {
-          FILTER(<LAT>!="")
-          {
-            SELECT ?concept (STRDT(SAMPLE(?lat1),xsd:decimal) AS ?lat) (STRDT(SAMPLE(?lng1),xsd:decimal) AS ?lng) {
-              {
-                SELECT DISTINCT ?concept {
-                  ?concept crm:P4_has_time-span/(crm:P82a_begin_of_the_begin|crm:P81a_end_of_the_begin|crm:P81b_begin_of_the_end|crm:P82b_end_of_the_end) ?tp .
-                }
-              }
-              ?concept crm:P7_took_place_at ?place .
-              ?place wgs84:lat ?lat1 .
-              ?place wgs84:long ?lng1 .
-            }
-            GROUP BY ?concept
-            ORDER BY (ABS(<LAT> - ?lat) + ABS(<LNG> - ?lng))
-            LIMIT 15
+        PREFIX oa: <http://www.w3.org/ns/oa#>
+        PREFIX oao: <http://www.openannotation.org/ns/>
+        PREFIX dct: <http://purl.org/dc/terms/>
+        PREFIX foaf: <http://xmlns.com/foaf/0.1/>
+        SELECT ?concept ?url ?slabel ?sdescription ?simageURL ?sbob ?seob ?sboe ?seoe {
+          VALUES ?o {
+            <CONCEPTS>
           }
-          ?concept skos:prefLabel ?label .
-          FILTER(LANG(?label)='en' || LANG(?label)='')
-          ?concept crm:P4_has_time-span ?ts .
-          ?ts crm:P82a_begin_of_the_begin ?bob .
-          ?ts crm:P82b_end_of_the_end ?eoe .
-          OPTIONAL { ?ts crm:P81a_end_of_the_begin ?eob }
-          OPTIONAL { ?ts crm:P81b_begin_of_the_end ?boe }
-          OPTIONAL {
-            ?concept dc:description ?description
-            FILTER(LANG(?description)='en' || LANG(?description)='')
-          }
+          ?a oa:hasBody ?o .
+          ?a oa:hasTarget ?concept .
+          ?concept dct:title ?slabel .
+          ?concept foaf:homepage ?url .
+          ?concept dct:temporal ?t .
+          FILTER(STRSTARTS(?t,"start"))
+          BIND(
+            REPLACE(
+            REPLACE(
+            REPLACE(
+            REPLACE(
+            REPLACE(?t
+            ,"start=(.*);.*","$1")
+            ,"^(-?)(\\\\d)$","$1000$2")
+            ,"^(-?)(\\\\d\\\\d)$","$100$2")
+            ,"^(-?)(\\\\d\\\\d\\\\d)$","$10$2")
+            ,"^-","-00")
+            AS ?sbob)
+          BIND(
+            REPLACE(
+            REPLACE(
+            REPLACE(
+            REPLACE(
+            REPLACE(?t
+            ,".*; end=(.*)","$1")
+            ,"^(-?)(\\\\d)$","$1000$2")
+            ,"^(-?)(\\\\d\\\\d)$","$100$2")
+            ,"^(-?)(\\\\d\\\\d\\\\d)$","$10$2")
+            ,"^-","-00")
+            AS ?seoe)
         }
-        GROUP BY ?concept
+        LIMIT 30
       '''
   }
   locationQueries  : [
@@ -299,13 +310,14 @@ angular.module('app').value 'configuration',
     PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
     PREFIX bf: <http://bibframe.org/vocab/>
     PREFIX foaf: <http://xmlns.com/foaf/0.1/>
+    PREFIX dct: <http://purl.org/dc/terms/>
     PREFIX rdve3: <http://rdvocab.info/ElementsGr3/>
     SELECT DISTINCT ?concept ?label {
       {
         VALUES ?concept {
           <CONCEPTS>
         }
-        ?concept skos:prefLabel|skos:altLabel ?label .
+        ?concept dct:title|rdfs:label|skos:prefLabel|skos:altLabel ?label .
       } UNION {
         SERVICE <http://ldf.fi/dbpedia/sparql> {
           VALUES ?concept {
@@ -318,8 +330,69 @@ angular.module('app').value 'configuration',
   '''
   relatedQueries : [
     {
+      name : 'Pelagios'
+      endpoint : 'http://ldf.fi/ancore/sparql'
+      query : '''
+        PREFIX oa: <http://www.w3.org/ns/oa#>
+        PREFIX oao: <http://www.openannotation.org/ns/>
+        PREFIX dct: <http://purl.org/dc/terms/>
+        PREFIX foaf: <http://xmlns.com/foaf/0.1/>
+        SELECT DISTINCT ?group ?group2 ?source ?description ?url ?label ?imageURL {
+          VALUES ?o {
+            <CONCEPTS>
+          }
+          GRAPH ?g {
+            ?s oa:hasBody|oao:hasBody ?o .
+          }
+          ?s oa:hasTarget|oao:hasTarget ?s2 .
+          {
+            ?s dct:title ?label .
+            BIND(?s2 AS ?url)
+          } UNION {
+            ?s2 dct:title ?label .
+            ?s2 foaf:homepage ?url .
+          }
+          BIND(
+            REPLACE(
+            REPLACE(
+            REPLACE(
+            REPLACE(
+            REPLACE(
+            REPLACE(
+            REPLACE(
+            REPLACE(
+            REPLACE(
+            REPLACE(
+            REPLACE(
+            REPLACE(
+            REPLACE(
+            REPLACE(STR(?g)
+              ,"http://dcc.dickinson.edu/sites/all/files/pelagios/ss-o-c.rdf","Dickinson College Commentaries")
+              ,"http://gap.alexandriaarchive.org/bookdata/GAPtriples.n3","Place reference in book visualized in GapVis")
+              ,"http://awmc.unc.edu/api/rdf_main.rdf","Place in AMWC feature database")
+              ,"http://imperium.ahlfeldt.se/dare_pelagios2.n3","Place in the Digital Atlas of the Roman Empire")
+              ,"http://isawnyu.github.com/isaw-papers-awdl/pelagios/isaw-papers-pelagios.rdf","References in ISAW papers")
+              ,"http://nomisma.org/pelagios.rdf","Place in nomisma vocabulary")
+              ,"http://finds.org.uk/rdf/pelagios.rdf","Place in nomisma vocabulary")
+              ,"http://numismatics.org/ocre/pelagios.rdf","Coins found in this place in Online Coins of the Roman Empire")
+              ,"http://numismatics.org/chrr/pelagios.rdf","Coins found in this place in Coin Hoards of the Roman Republic")
+              ,"http://www.perseus.tufts.edu/xml/Perseus:collection:Greco-Roman.pleiades.rdf","References in the Perseus collection")
+              ,"http://www.ancientwisdoms.ac.uk/media/pelagios/SAWSpelagios.rdf","References in Sharing Ancient Wisdoms")
+              ,"http://omnesviae.org/api/sites/all/rdf","Place in the OmnesViae Roman Routeplanner")
+              ,"http://opencontext.org/export/pelagios","References in Open Context archaeological data")
+              ,"http://orbis.stanford.edu/api/orbis.pelagios.rdf","Place in the Stanford Geospatial Network Model of the Roman World")
+            AS ?group)
+        }
+      '''
+    }
+    {
+      name : 'Perseus Hopper'
+      type : 'Atom'
+      endpoint : 'http://catalog.perseus.org/catalog.atom?q=<QUERY>'
+    }
+    {
       name : 'Europeana'
-      endpoint : 'http://ldf.fi/ww1lod/sparql'
+      endpoint : 'http://ldf.fi/ancore/sparql'
       query: '''
         PREFIX dc: <http://purl.org/dc/elements/1.1/>
         PREFIX edm: <http://www.europeana.eu/schemas/edm/>

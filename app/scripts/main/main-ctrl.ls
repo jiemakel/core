@@ -1,4 +1,4 @@
-angular.module('app').controller 'MainCtrl', ($window, $scope, $state, $location, $timeout, $stateParams, $q, $http, sparql, prefixService, $compile, $templateCache,configuration ) !->
+angular.module('app').controller 'MainCtrl', ($window, $scope, $state, $location, $timeout, $stateParams, $q, $http, sparql, prefixService, $compile, $sce, $templateCache,configuration ) !->
   $window.PDFJS.workerSrc = 'bower_components/pdfjs-bower/dist/pdf.worker.js'
   iframe = $window.document.getElementById("htmlviewer")
   cd = iframe.contentDocument
@@ -114,9 +114,9 @@ angular.module('app').controller 'MainCtrl', ($window, $scope, $state, $location
         if (!end? || end<d) then end=d
     for v,desc of descs
       context.descriptions.push(desc)
-    if (beg? && end?)
-      begS='"'+beg.toISOString! + '"^^<http://www.w3.org/2001/XMLSchema#dateTime>'
-      endS='"'+end.toISOString! + '"^^<http://www.w3.org/2001/XMLSchema#dateTime>'
+    do
+      begS= if beg? then '"'+beg.toISOString! + '"^^<http://www.w3.org/2001/XMLSchema#dateTime>' else '"foo"'
+      endS= if end? then '"'+end.toISOString! + '"^^<http://www.w3.org/2001/XMLSchema#dateTime>' else '"foo"'
       count = 0
       eventsD = []
       eventsM = []
@@ -130,7 +130,7 @@ angular.module('app').controller 'MainCtrl', ($window, $scope, $state, $location
         total++
         let id = id1
           cancelers['temporalQuery_' + id] = $q.defer!
-          response <-! sparql.query(q.endpoint,q.query.replace(/<BEG>/g,begS).replace(/<END>/g,endS).replace(/<LAT>/g,context.lat ? '""').replace(/<LNG>/g,context.lng ? '""'),{timeout: cancelers['temporalQuery_' + id].promise}).then(_,handleError)
+          response <-! sparql.query(q.endpoint,q.query.replace(/<CONCEPTS>/g,sconcepts).replace(/<BEG>/g,begS).replace(/<END>/g,endS).replace(/<LAT>/g,context.lat ? '""').replace(/<LNG>/g,context.lng ? '""'),{timeout: cancelers['temporalQuery_' + id].promise}).then(_,handleError)
           for binding in response.data.results.bindings when binding.sbob? && binding.seoe?
             bob = new Date(binding.sbob.value)
             eoe = new Date(binding.seoe.value)
@@ -147,7 +147,7 @@ angular.module('app').controller 'MainCtrl', ($window, $scope, $state, $location
               color: colors[count % colors.length]
               textColor: 'black'
               icon: loc+'scripts/timeline_2.3.1/timeline_js/images/'+images[count % images.length]
-              link: 'javascript:openContext("'+sparql.bindingToString(binding.concept)+'")'
+              link: if binding.url? then $state.href('home',{url:binding.url.value}) else 'javascript:openContext("'+sparql.bindingToString(binding.concept)+'")'
               durationEvent: false
               title: binding.slabel.value
               description: if binding.sdescription? then binding.sdescription.value else ''
@@ -156,7 +156,8 @@ angular.module('app').controller 'MainCtrl', ($window, $scope, $state, $location
             context.cmap[id]=colors[count % colors.length]
           if ++count == total
             tsize = (eventsD.length+eventsM.length+eventsY.length)
-            if (tsize>0)
+            if tsize==0 then context.cmap=void
+            else
               bandInfos = []
               theme = Timeline.ClassicTheme.create!
               theme.autoWidth = true
@@ -198,7 +199,7 @@ angular.module('app').controller 'MainCtrl', ($window, $scope, $state, $location
                 overview: true
                 width: "2%"
                 intervalUnit: Timeline.DateTime.YEAR
-                intervalPixels: 150
+                intervalPixels: 100
               ))
               for i from 1 til bandInfos.length
                 bandInfos[i].syncWith = i - 1
@@ -287,6 +288,12 @@ angular.module('app').controller 'MainCtrl', ($window, $scope, $state, $location
           else if q.type=='OpenSearch'
             for doc in response.data.Results
               lrmap.{}[doc.LANGUAGE[0]].[][''].push({url:doc.URI,imageURL:doc.THUMBNAIL?[0],description:doc.TOPIC?.join(', '),label:doc.TITLE.join(', ')})
+          else if q.type=='Atom'
+            results = []
+            for entry in angular.element(new DOMParser!.parseFromString(response.data,"application/xml")).find('entry')
+              e = angular.element(entry)
+              results.push({label:e.children('title').text!, url:e.children('link[type="text/html"]').attr('href'),description:$sce.trustAsHtml(e.children('summary').text!)})
+            lrmap['']={'':results}
           else
             for doc in response.data.response.result.doc
               infos = []
@@ -304,14 +311,16 @@ angular.module('app').controller 'MainCtrl', ($window, $scope, $state, $location
                 case "dc.description" then description = (info.str ? info).$t
                 case "dc.title" then label = (info.str ? info).$t
               lrmap.{}[doc['@source']].[][''].push({url,imageURL,description,label})
+          haveResources = false
           for lang,typeMap of lrmap
             gr = {group:lang,resources:[]}
             for type,values of typeMap
               if (type!='') then gr.resources.push({group:type})
               for value in values
+                haveResources = true
                 gr.resources.push(value)
             res.groups.push(gr)
-          context.linkedResources[id]=res
+          if haveResources then context.linkedResources[id]=res
   $scope.openContext1 = (event,concept) !-> $scope.openContext2(concept)
   $scope.openContext2 = (concept) !->
     response <-! sparql.query(configuration.sparqlEndpoint,configuration.expandEquivalentConceptsQuery.replace(/<ID>/g,concept)).then(_,handleError)
@@ -340,7 +349,9 @@ angular.module('app').controller 'MainCtrl', ($window, $scope, $state, $location
     response <-! $http.post(configuration.findURL,$.param({text:query}),{headers: {'Content-Type': 'application/x-www-form-urlencoded'}}).then(_,handleError)
     $scope.findQueryRunning = false
     ngramsToConcepts = {}
-    response.data.results.sort((a,b)->parseInt(a.properties.source[0])-parseInt(b.properties.source[0]))
+    for c in response.data.results
+      c.properties.source.sort((a,b) -> parseInt(a)-parseInt(b))
+    response.data.results.sort((a,b)-> parseInt(a.properties.source[0])-parseInt(b.properties.source[0]))
     for c in response.data.results
       for m in c.matches
         ngramsToConcepts[][m].push(c)

@@ -23,7 +23,7 @@ div(ui-layout="{flow:'column'}")
     ul.ui.horizontal.bulleted.list: li.item(ng-repeat="concept in concepts"): a(href="{{concept.substring(1,concept.length-1)}}") {{concept}}
     div: img(ng-repeat="imageURL in context.imageURLs",ng-src="{{imageURL}}")
     .description(ng-repeat="description in context.descriptions",ng-class="'c'+description.class") {{description.text}}
-    div(ng-show="context.bob || context.eob || context.boe || context.eoe")
+    div(ng-show="context.cmap")
       h2 Timeline
       div(id="timeline")
       span(ng-repeat="(id,col) in context.cmap",style="background-color:{{col}}") {{id}}
@@ -57,7 +57,7 @@ div(ui-layout="{flow:'column'}")
               a(ng-if="res.imageURL",ui-sref="home({url:res.url})"): img(ng-src="{{res.imageURL}}")
               .content
                 a.header(href="",ui-sref="home({url:res.url})") {{res.label}}
-                div {{res.description | limitTo:200 }}
+                div(ng-bind-html="res.description| limitTo:200")
                 div.extra {{res.source}}
     h2: i.icon.loading(ng-show="context.relatedQueriesRunning>0")
 #bottom
