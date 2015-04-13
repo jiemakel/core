@@ -2,7 +2,9 @@ angular.module('app').value 'configuration',
   sparqlEndpoint : 'http://ldf.fi/ancore/sparql'
   defaultURL : 'http://www.perseus.tufts.edu/hopper/text?doc=Perseus%3Atext%3A1999.02.0001%3Abook%3D1%3Achapter%3D1' #'http://www.gutenberg.org/files/226/226-h/226-h.htm'
   # used to locate the IRI corressponding to the document metadata when opening a document URL for reading
-  findURL : 'http://demo.seco.tkk.fi/arpa/ancore'
+  findURL :
+    en: 'http://demo.seco.tkk.fi/arpa/ancore-en'
+    _: 'http://demo.seco.tkk.fi/arpa/ancore-la'
   sources : [ 'Pleiades', 'DBPedia', 'Latin DBPedia' ]
   # used to locate the IRI corressponding to the document metadata when opening a document URL for reading
   findContextByDocumentURLQuery : '''

@@ -347,12 +347,25 @@ angular.module('app').controller 'MainCtrl', ($window, $scope, $state, $location
     $scope.findQueryRunning = true
     /*query = configuration.findQuery.replace(/<WORD_INDICES>/g,[0 to lastIndex].join(" ")).replace(/<TEXTS>/g,escapedTexts)
     response <-! sparql.query(configuration.sparqlEndpoint,query).then(_,handleError) */
-    response <-! $http.post(configuration.findURL,$.param({text:query}),{headers: {'Content-Type': 'application/x-www-form-urlencoded'}}).then(_,handleError)
+    promise = if typeof(configuration.findURL)=="string"
+      ret = $q.defer!
+      ret.resolve(configuration.findURL)
+      ret.promise
+    else
+      $http.post('http://demo.seco.tkk.fi/las/identify',$.param({text:query}),{headers: {'Content-Type': 'application/x-www-form-urlencoded'}}).then (response) ->
+        ret = configuration.findURL[response.data.locale]
+        if (!ret?) then ret = configuration.findURL._
+        ret
+    findURL <-! promise.then(_,handleError)
+    response <-! $http.post(findURL,$.param({text:query}),{headers: {'Content-Type': 'application/x-www-form-urlencoded'}}).then(_,handleError)
     $scope.findQueryRunning = false
     ngramsToConcepts = {}
     for c in response.data.results
       c.properties.source.sort((a,b) -> parseInt(a)-parseInt(b))
-    response.data.results.sort((a,b)-> parseInt(a.properties.source[0])-parseInt(b.properties.source[0]))
+    response.data.results.sort((a,b)->
+      ret=parseInt(a.properties.source[0]) - parseInt(b.properties.source[0])
+      if ret!=0 then ret else b.label.length - a.label.length
+    )
     for c in response.data.results
       for m in c.matches
         ngramsToConcepts[][m].push(c)
