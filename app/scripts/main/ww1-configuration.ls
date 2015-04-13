@@ -335,22 +335,23 @@ angular.module('app').value 'configuration',
     }
   '''
   temporalQueries : {
-    'Events Near in Time' :
+    'Events from 1914-1918 Online' :
       endpoint : 'http://ldf.fi/ww1lod/sparql'
       query : '''
         PREFIX dc: <http://purl.org/dc/elements/1.1/>
         PREFIX crm: <http://www.cidoc-crm.org/cidoc-crm/>
         PREFIX xsd: <http://www.w3.org/2001/XMLSchema#>
         PREFIX skos: <http://www.w3.org/2004/02/skos/core#>
-        SELECT ?concept (SAMPLE(?label) AS ?slabel) (SAMPLE(?description) AS ?sdescription) (SAMPLE(?imageURL) AS ?simageURL) (SAMPLE(?bob) AS ?sbob) (SAMPLE(?eob) AS ?seob) (SAMPLE(?boe) AS ?sboe) (SAMPLE(?eoe) AS ?seoe) {
+        PREFIX owl: <http://www.w3.org/2002/07/owl#>
+        PREFIX e1418: <http://encyclopedia.1914-1918-online.net/lod/schema#>
+        SELECT ?concept (SAMPLE(?curl) AS ?url) (SAMPLE(?label) AS ?slabel) (SAMPLE(?description) AS ?sdescription) (SAMPLE(?imageURL) AS ?simageURL) (SAMPLE(?bob) AS ?sbob) (SAMPLE(?eob) AS ?seob) (SAMPLE(?boe) AS ?sboe) (SAMPLE(?eoe) AS ?seoe) {
           {
             SELECT ?concept {
               BIND(STRDT(REPLACE(STR(<BEG>),CONCAT(TZ(<BEG>),"$"),""),xsd:dateTime) AS ?lbeg)
               BIND(STRDT(REPLACE(STR(<END>),CONCAT(TZ(<END>),"$"),""),xsd:dateTime) AS ?lend)
               {
                 SELECT ?concept (MAX(?tp) AS ?end) (MIN(?tp) AS ?beg) {
-                  GRAPH ?g { ?concept crm:P4_has_time-span ?ts }
-                  FILTER (?g!=<http://ldf.fi/ww1lod/iwm/>)
+                  GRAPH <http://encyclopedia.1914-1918-online.net/lod/> { ?concept crm:P4_has_time-span ?ts }
                   ?ts crm:P82a_begin_of_the_begin|crm:P81a_end_of_the_begin|crm:P81b_begin_of_the_end|crm:P82b_end_of_the_end ?tp .
                 }
                 GROUP BY ?concept
@@ -361,7 +362,51 @@ angular.module('app').value 'configuration',
               FILTER(BOUND(?dif2))
             }
             ORDER BY (?dif1+?dif2)
-            LIMIT 15
+            LIMIT 10
+          }
+          ?concept skos:prefLabel ?label .
+          FILTER(LANG(?label)='en' || LANG(?label)='')
+          ?concept crm:P4_has_time-span ?ts .
+          ?ts crm:P82a_begin_of_the_begin ?bob .
+          ?ts crm:P82b_end_of_the_end ?eoe .
+          OPTIONAL { ?ts crm:P81a_end_of_the_begin ?eob }
+          OPTIONAL { ?ts crm:P81b_begin_of_the_end ?boe }
+          OPTIONAL { ?concept e1418:E1418_P_Related_Image ?imageURL }
+          OPTIONAL { ?concept e1418:E1418_P_Related_Article ?curl }
+        }
+        GROUP BY ?concept
+      '''
+    'Events Near in Time' :
+      endpoint : 'http://ldf.fi/ww1lod/sparql'
+      query : '''
+        PREFIX dc: <http://purl.org/dc/elements/1.1/>
+        PREFIX crm: <http://www.cidoc-crm.org/cidoc-crm/>
+        PREFIX xsd: <http://www.w3.org/2001/XMLSchema#>
+        PREFIX skos: <http://www.w3.org/2004/02/skos/core#>
+        PREFIX owl: <http://www.w3.org/2002/07/owl#>
+        SELECT ?concept (SAMPLE(?label) AS ?slabel) (SAMPLE(?description) AS ?sdescription) (SAMPLE(?imageURL) AS ?simageURL) (SAMPLE(?bob) AS ?sbob) (SAMPLE(?eob) AS ?seob) (SAMPLE(?boe) AS ?sboe) (SAMPLE(?eoe) AS ?seoe) {
+          {
+            SELECT ?concept {
+              BIND(STRDT(REPLACE(STR(<BEG>),CONCAT(TZ(<BEG>),"$"),""),xsd:dateTime) AS ?lbeg)
+              BIND(STRDT(REPLACE(STR(<END>),CONCAT(TZ(<END>),"$"),""),xsd:dateTime) AS ?lend)
+              {
+                SELECT ?concept (MAX(?tp) AS ?end) (MIN(?tp) AS ?beg) {
+                  GRAPH ?g { ?concept crm:P4_has_time-span ?ts }
+                  FILTER (?g!=<http://ldf.fi/ww1lod/iwm/>)
+                  FILTER NOT EXISTS {
+                    ?concept owl:sameAs ?concept2 .
+                  }
+                  ?ts crm:P82a_begin_of_the_begin|crm:P81a_end_of_the_begin|crm:P81b_begin_of_the_end|crm:P82b_end_of_the_end ?tp .
+                }
+                GROUP BY ?concept
+              }
+              BIND(STRDT(REPLACE(STR(?lbeg - ?beg),"^-",""),xsd:duration) AS ?dif1)
+              FILTER(BOUND(?dif1))
+              BIND(STRDT(REPLACE(STR(?lend - ?end),"^-",""),xsd:duration) AS ?dif2)
+              FILTER(BOUND(?dif2))
+            }
+            ORDER BY (?dif1+?dif2)
+            LIMIT 10
           }
           ?concept skos:prefLabel ?label .
           FILTER(LANG(?label)='en' || LANG(?label)='')
@@ -402,7 +447,7 @@ angular.module('app').value 'configuration',
               FILTER(BOUND(?dif2))
             }
             ORDER BY (?dif1+?dif2)
-            LIMIT 15
+            LIMIT 10
           }
           ?concept skos:prefLabel ?label .
           FILTER(LANG(?label)='en' || LANG(?label)='')
@@ -418,7 +463,7 @@ angular.module('app').value 'configuration',
         }
         GROUP BY ?concept
       '''
-    'Other Events Near Location' :
+    'Events Near Location' :
       endpoint : 'http://ldf.fi/ww1lod/sparql'
       query : '''
         PREFIX dc: <http://purl.org/dc/elements/1.1/>
@@ -441,7 +486,7 @@ angular.module('app').value 'configuration',
             }
             GROUP BY ?concept
             ORDER BY (ABS(<LAT> - ?lat) + ABS(<LNG> - ?lng))
-            LIMIT 15
+            LIMIT 10
           }
           ?concept skos:prefLabel ?label .
           FILTER(LANG(?label)='en' || LANG(?label)='')

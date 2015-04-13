@@ -17,6 +17,7 @@ angular.module('app').controller 'MainCtrl', ($window, $scope, $state, $location
   css.setAttribute('rel','stylesheet')
   cd.head.appendChild(css)
   $scope.closeContext = !->
+    console.log("closeContext")
     $location.search('concepts',void)
     $scope.context=false
     $scope.concepts=void
@@ -214,7 +215,7 @@ angular.module('app').controller 'MainCtrl', ($window, $scope, $state, $location
         let id = id1, q=q1
           cancelers['locationQuery_' + id] = $q.defer!
           response <-! sparql.query(q.endpoint,q.query.replace(/<CONCEPTS>/g,sconcepts).replace(/<LATLNG>/g,"(#{context.lat} #{context.lng})"),{timeout: cancelers['locationQuery_' + id].promise}).then(_,handleError)
-          for binding in response.data.results.bindings
+          for binding in response.data.results.bindings when binding.concept?
             $scope.context.linkedLocations.push({icon:icons[id],concept:sparql.bindingToString(binding.concept),label:binding.label.value,lat:binding.lat.value,lng:binding.lng.value})
     cancelers.relatedEntitiesQuery = $q.defer!
     response <-! sparql.query(configuration.sparqlEndpoint,configuration.relatedEntitiesQuery.replace(/<CONCEPTS>/g,sconcepts),{timeout: cancelers.relatedEntitiesQuery.promise}).then(_,handleError)
