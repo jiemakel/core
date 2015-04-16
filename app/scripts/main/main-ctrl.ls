@@ -208,7 +208,8 @@ angular.module('app').controller 'MainCtrl', ($window, $scope, $state, $location
               tldiv = angular.element($window.document.getElementById('timeline'))
               tldiv.replaceWith('<div id="timeline"></div>')
               tl = Timeline.create($window.document.getElementById('timeline'),bandInfos)
-              tl.getBand(0).setCenterVisibleDate(eventsO[0].start)
+              eventsO.sort (a,b) -> a.start - b.start
+              tl.getBand(0).setCenterVisibleDate(eventsO[Math.floor(eventsO.length/2)].start)
     if (context.lat? && context.lng?)
       $scope.context.linkedLocations = []
       for id1,q1 of configuration.locationQueries

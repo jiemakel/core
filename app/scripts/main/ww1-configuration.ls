@@ -362,7 +362,7 @@ angular.module('app').value 'configuration',
               FILTER(BOUND(?dif2))
             }
             ORDER BY (?dif1+?dif2)
-            LIMIT 10
+            LIMIT 5
           }
           ?concept skos:prefLabel ?label .
           FILTER(LANG(?label)='en' || LANG(?label)='')
@@ -406,7 +406,7 @@ angular.module('app').value 'configuration',
               FILTER(BOUND(?dif2))
             }
             ORDER BY (?dif1+?dif2)
-            LIMIT 10
+            LIMIT 5
           }
           ?concept skos:prefLabel ?label .
           FILTER(LANG(?label)='en' || LANG(?label)='')
@@ -447,46 +447,7 @@ angular.module('app').value 'configuration',
               FILTER(BOUND(?dif2))
             }
             ORDER BY (?dif1+?dif2)
-            LIMIT 10
-          }
-          ?concept skos:prefLabel ?label .
-          FILTER(LANG(?label)='en' || LANG(?label)='')
-          ?concept crm:P4_has_time-span ?ts .
-          ?ts crm:P82a_begin_of_the_begin ?bob .
-          ?ts crm:P82b_end_of_the_end ?eoe .
-          OPTIONAL { ?ts crm:P81a_end_of_the_begin ?eob }
-          OPTIONAL { ?ts crm:P81b_begin_of_the_end ?boe }
-          OPTIONAL {
-            ?concept dc:description ?description
-            FILTER(LANG(?description)='en' || LANG(?description)='')
-          }
-        }
-        GROUP BY ?concept
-      '''
-    'Events Near Location' :
-      endpoint : 'http://ldf.fi/ww1lod/sparql'
-      query : '''
-        PREFIX dc: <http://purl.org/dc/elements/1.1/>
-        PREFIX crm: <http://www.cidoc-crm.org/cidoc-crm/>
-        PREFIX xsd: <http://www.w3.org/2001/XMLSchema#>
-        PREFIX wgs84: <http://www.w3.org/2003/01/geo/wgs84_pos#>
-        PREFIX skos: <http://www.w3.org/2004/02/skos/core#>
-        SELECT ?concept (SAMPLE(?label) AS ?slabel) (SAMPLE(?description) AS ?sdescription) (SAMPLE(?imageURL) AS ?simageURL) (SAMPLE(?bob) AS ?sbob) (SAMPLE(?eob) AS ?seob) (SAMPLE(?boe) AS ?sboe) (SAMPLE(?eoe) AS ?seoe) {
-          FILTER(<LAT>!="")
-          {
-            SELECT ?concept (STRDT(SAMPLE(?lat1),xsd:decimal) AS ?lat) (STRDT(SAMPLE(?lng1),xsd:decimal) AS ?lng) {
-              {
-                SELECT DISTINCT ?concept {
-                  ?concept crm:P4_has_time-span/(crm:P82a_begin_of_the_begin|crm:P81a_end_of_the_begin|crm:P81b_begin_of_the_end|crm:P82b_end_of_the_end) ?tp .
-                }
-              }
-              ?concept crm:P7_took_place_at ?place .
-              ?place wgs84:lat ?lat1 .
-              ?place wgs84:long ?lng1 .
-            }
-            GROUP BY ?concept
-            ORDER BY (ABS(<LAT> - ?lat) + ABS(<LNG> - ?lng))
-            LIMIT 10
+            LIMIT 5
           }
           ?concept skos:prefLabel ?label .
           FILTER(LANG(?label)='en' || LANG(?label)='')
@@ -651,7 +612,7 @@ angular.module('app').value 'configuration',
         PREFIX cww1s: <http://ldf.fi/colorado-ww1-schema#>
         PREFIX mads: <http://www.loc.gov/mads/rdf/v1#>
         PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
-        SELECT (SAMPLE(?gr) AS ?group) (SAMPLE(?gr2) AS ?group2) (SAMPLE(?d) AS ?description) ?url (SAMPLE(?l) AS ?label) (SAMPLE(?iURL) AS ?imageURL) {
+        SELECT (GROUP_CONCAT(DISTINCT ?gr;separator=', ') AS ?group) (MIN(?gr2) AS ?group2) (SAMPLE(?d) AS ?description) ?url (SAMPLE(?l) AS ?label) (SAMPLE(?iURL) AS ?imageURL) {
           {
             SELECT ?s (GROUP_CONCAT(DISTINCT ?mtype;separator=', ') AS ?gr2) (SAMPLE(?mlabel) AS ?gr) {
               VALUES (?concept ?mlabel) {
@@ -685,10 +646,10 @@ angular.module('app').value 'configuration',
               }
               GROUP BY ?s2
             }
+            FILTER(BOUND(?s2))
             ?s ?p ?s2 .
             ?p rdfs:label ?gr2 .
           }
-          FILTER(BOUND(?s))
           ?s bf:title ?l .
           ?i bf:instanceOf ?s .
           ?i foaf:page ?url .
