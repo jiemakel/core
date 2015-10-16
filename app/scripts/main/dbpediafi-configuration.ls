@@ -1,8 +1,8 @@
 angular.module('app').value 'configuration',
-  sparqlEndpoint : 'http://ldf.fi/finlex/sparql'
-  defaultURL : 'http://finlex.fi/fi/oikeus/kko/kko/2011/20110110'
+  sparqlEndpoint : 'http://ldf.fi/dbpedia-fi/sparql'
+  defaultURL : 'http://yle.fi/uutiset/yrittajat_tyytyvaisia_sipilan_uusimmista_puheista__lomarahoja_ei_tarvitse_maksaa_kaikille/8343060'
   # used to locate the IRI corressponding to the document metadata when opening a document URL for reading
-  arpaURLs : [ 'http://demo.seco.tkk.fi/arpa/finlex' ]
+  arpaURLs : [ 'http://demo.seco.tkk.fi/arpa/dbpedia-fi' ]
   sources : ['Asseri','Tieteen termipankki','Wikipedia']
   findContextByDocumentURLQuery : '''
     SELECT ?id {

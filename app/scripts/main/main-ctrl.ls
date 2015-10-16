@@ -348,31 +348,34 @@ angular.module('app').controller 'MainCtrl', ($window, $scope, $state, $location
     $scope.findQueryRunning = true
     /*query = configuration.findQuery.replace(/<WORD_INDICES>/g,[0 to lastIndex].join(" ")).replace(/<TEXTS>/g,escapedTexts)
     response <-! sparql.query(configuration.sparqlEndpoint,query).then(_,handleError) */
-    promise = if typeof(configuration.findURL)=="string"
+    promise = if configuration.arpaURLs instanceof Array
       ret = $q.defer!
-      ret.resolve(configuration.findURL)
+      ret.resolve(configuration.arpaURLs)
       ret.promise
     else
       $http.post('http://demo.seco.tkk.fi/las/identify',$.param({text:query}),{headers: {'Content-Type': 'application/x-www-form-urlencoded'}}).then (response) ->
-        ret = configuration.findURL[response.data.locale]
-        if (!ret?) then ret = configuration.findURL._
+        ret = configuration.arpaURLs[response.data.locale]
+        if (!ret?) then ret = configuration.arpaURLs._
         ret
-    findURL <-! promise.then(_,handleError)
-    response <-! $http.post(findURL,$.param({text:query}),{headers: {'Content-Type': 'application/x-www-form-urlencoded'}}).then(_,handleError)
+    arpaURLs <-! promise.then(_,handleError)
+    promises = [ $http.post(findURL,$.param({text:query}),{headers: {'Content-Type': 'application/x-www-form-urlencoded'}}).catch((error) -> "") for findURL in arpaURLs ]
+    responses <-! $q.all(promises).then(_,handleError)
+    combinedResults = []
+    for response,index in responses then if response.data? then for result in response.data.results
+      if (!result.properties.source?) then result.properties.source=[index+1]
+      combinedResults.push(result)
+    console.log(combinedResults.length)
     $scope.findQueryRunning = false
     ngramsToConcepts = {}
-    for c in response.data.results
+    for c in combinedResults
       c.properties.source.sort((a,b) -> parseInt(a)-parseInt(b))
-    response.data.results.sort((a,b)->
-      ret=parseInt(a.properties.source[0]) - parseInt(b.properties.source[0])
-      if ret!=0 then ret else b.label.length - a.label.length
+    combinedResults.sort((a,b)->
+      ret=(b.label.match(/ +/g)?.length ? 0) - (a.label.match(/ +/g)?.length ? 0)
+      if ret!=0 then ret else parseInt(a.properties.source[0]) - parseInt(b.properties.source[0])
     )
-    for c in response.data.results
+    for c in combinedResults
       for m in c.matches
         ngramsToConcepts[][m].push(c)
-    /*for binding in response.data.results.bindings
-      if (!ngramsToConcepts[binding.ngram.value]?) then ngramsToConcepts[binding.ngram.value]=[]
-      ngramsToConcepts[binding.ngram.value].push(binding)*/
     texts2 = [[text] for text in texts]
     for ngram, bindings of ngramsToConcepts
 #      ngram = ( bfrmap[baseform] for baseform in label.split(' ') ).join(' ')
@@ -502,4 +505,3 @@ angular.module('app').controller 'MainCtrl', ($window, $scope, $state, $location
         span.textContent=this.textContent
         span
       runAnalysis(angular.element(cd.body).find('a,p,div,span').contents().filter(-> this.nodeType == 3 && this.parentNode.childNodes.length==1).parent())
-

@@ -1,8 +1,8 @@
 angular.module('app').value 'configuration',
-  sparqlEndpoint : 'http://ldf.fi/finlex/sparql'
-  defaultURL : 'http://finlex.fi/fi/oikeus/kko/kko/2011/20110110'
+  sparqlEndpoint : 'http://ldf.fi/warsa/sparql'
+  defaultURL : 'http://kansataisteli.sshs.fi/Tekstit/1983/Kansa_Taisteli_09_1983.pdf#page=13'
   # used to locate the IRI corressponding to the document metadata when opening a document URL for reading
-  arpaURLs : [ 'http://demo.seco.tkk.fi/arpa/finlex' ]
+  arpaURLs : ['http://demo.seco.tkk.fi/arpa/karelia-places','http://demo.seco.tkk.fi/arpa/warsa_actor_persons','http://demo.seco.tkk.fi/arpa/warsa_actor_units']
   sources : ['Asseri','Tieteen termipankki','Wikipedia']
   findContextByDocumentURLQuery : '''
     SELECT ?id {

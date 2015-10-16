@@ -2,7 +2,7 @@ angular.module('app').value 'configuration',
   sparqlEndpoint : 'http://ldf.fi/ww1lod/sparql'
   defaultURL : 'http://media.onki.fi/0/0/0/ww1/i71780828.pdf'
   # used to locate the IRI corressponding to the document metadata when opening a document URL for reading
-  findURL : 'http://demo.seco.tkk.fi/arpa/ww1lod'
+  arpaURLs : [ 'http://demo.seco.tkk.fi/arpa/ww1lod' ]
   sources : [ 'WW1LOD', 'PCDHN-LOD','Trenches to Triples','DBPedia','Europeana' ]
   # used to locate the IRI corressponding to the document metadata when opening a document URL for reading
   findContextByDocumentURLQuery : '''
