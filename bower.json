@@ -9,11 +9,27 @@
     "pdfjs-bower": "jiemakel/pdfjs-bower#master",
     "xregexp": "slevithan/xregexp",
     "angular-google-staticmaps": "latest",
-    "ngmap": "~0.15.4",
-    "angular-sanitize": "~1.3.10",
-    "angular-ui-layout": "~1.0.5"
+    "ngmap": "latest",
+    "angular-sanitize": "latest",
+    "angular-ui-layout": "latest"
+  },
+  "overrides": {
+    "semantic-ui": {
+      "main": [
+        "src/semantic.less",
+        "dist/semantic.js",
+        "dist/semantic.css",
+	"dist/themes/default/assets/fonts/icons.woff",
+	"dist/themes/default/assets/fonts/icons.woff2",
+	"dist/themes/default/assets/fonts/icons.ttf",
+	"dist/themes/default/assets/fonts/icons.svg",
+	"dist/themes/default/assets/fonts/icons.eot",
+	"dist/themes/default/assets/fonts/icons.otf",
+	"dist/themes/default/assets/images/flags.png"
+      ]
+    }
   },
   "devDependencies": {
-    "angular-mocks": "*"
+    "angular-mocks": "latest"
   }
 }
