@@ -1,9 +1,9 @@
 angular.module('app').value 'configuration',
   sparqlEndpoint : 'http://ldf.fi/warsa/sparql'
-  defaultURL : 'http://kansataisteli.sshs.fi/Tekstit/1983/Kansa_Taisteli_09_1983.pdf#page=13'
+  defaultURL : 'http://kansataisteli.sshs.fi/Tekstit/1983/Kansa_Taisteli_09_1983.pdf&page=13'
   # used to locate the IRI corressponding to the document metadata when opening a document URL for reading
-  arpaURLs : ['http://demo.seco.tkk.fi/arpa/karelia-places','http://demo.seco.tkk.fi/arpa/warsa_actor_persons','http://demo.seco.tkk.fi/arpa/warsa_actor_units']
-  sources : ['Asseri','Tieteen termipankki','Wikipedia']
+  arpaURLs : ['http://demo.seco.tkk.fi/arpa/karelia-places','http://demo.seco.tkk.fi/arpa/warsa_actor_persons','http://demo.seco.tkk.fi/arpa/warsa_actor_units','http://demo.seco.tkk.fi/arpa/warsa-dbpedia-fi']
+  sources : ['Karelian places','Warsa persons','Warsa units','DBPedia']
   findContextByDocumentURLQuery : '''
     SELECT ?id {
       {
@@ -50,6 +50,10 @@ angular.module('app').value 'configuration',
     PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
     PREFIX skos: <http://www.w3.org/2004/02/skos/core#>
     PREFIX dct: <http://purl.org/dc/terms/>
+    PREFIX wgs84: <http://www.w3.org/2003/01/geo/wgs84_pos#>
+    PREFIX georss: <http://www.georss.org/georss/>
+	PREFIX dc: <http://purl.org/dc/elements/1.1/>
+    PREFIX crm: <http://www.cidoc-crm.org/cidoc-crm/>
     SELECT ?simageURL ?sllabel ?sdlabel ?salabel ?sgloss ?slat ?slng ?spolygon {
       {
         VALUES ?concept {
@@ -60,7 +64,20 @@ angular.module('app').value 'configuration',
         OPTIONAL {
           ?concept dct:description ?gloss .
         }
-        ?concept rdfs:comment ?gloss2 .
+        #?concept rdfs:comment ?gloss2 .
+	OPTIONAL {
+          {
+            ?concept wgs84:lat ?slat .
+            ?concept wgs84:long ?slng .
+          } UNION {
+            ?concept crm:P7_took_place_at ?c2 .
+            ?c2 wgs84:lat ?slat .
+            ?c2 wgs84:long ?slng .
+          }
+        }
+        OPTIONAL {
+          ?concept georss:polygon ?polygon .
+        }
       } UNION {
         SERVICE <http://ldf.fi/dbpedia-fi/sparql> {
           VALUES ?concept {
@@ -73,8 +90,8 @@ angular.module('app').value 'configuration',
       BIND("" AS ?sdlabel)
       BIND("" AS ?salabel)
       BIND(IF(BOUND(?gloss),CONCAT(?gloss,".\\n\\n",?gloss2),?gloss2) AS ?sgloss)
-      BIND("" AS ?slat)
-      BIND("" AS ?slng)
+      #BIND("" AS ?slat)
+      #BIND("" AS ?slng)
       BIND("" AS ?spolygon)
       BIND("" AS ?simageURL)
     }
@@ -104,6 +121,8 @@ angular.module('app').value 'configuration',
     PREFIX skos: <http://www.w3.org/2004/02/skos/core#>
     PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
     PREFIX dc: <http://purl.org/dc/elements/1.1/>
+    PREFIX sch: <http://schema.org/>
+    PREFIX dct: <http://purl.org/dc/terms/>
     SELECT (COALESCE(?llabel,?dlabel,?alabel) AS ?label) ?description ?order ?imageURL ?lat ?lng ?polygon ?bob ?eob ?boe ?eoe {
       VALUES ?concept {
         <CONCEPTS>
@@ -122,180 +141,65 @@ angular.module('app').value 'configuration',
       OPTIONAL {
         ?concept dc:description ?description .
       }
+      OPTIONAL {
+        ?imageId dct:spatial ?concept .
+        ?imageId sch:contentUrl ?imageURL .
+      }
     }
+    LIMIT 1
   '''
   temporalQueries : {
   }
   locationQuery : '''
-    SELECT ?group ?concept ?label ?description ?imageURL ?lat ?lng ?polygon {
-    }
+        PREFIX dc: <http://purl.org/dc/elements/1.1/>
+        PREFIX crm: <http://www.cidoc-crm.org/cidoc-crm/>
+        PREFIX dbo: <http://dbpedia.org/ontology/>
+        PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+        PREFIX skos: <http://www.w3.org/2004/02/skos/core#>
+        PREFIX wgs84: <http://www.w3.org/2003/01/geo/wgs84_pos#>
+        PREFIX xsd: <http://www.w3.org/2001/XMLSchema#>
+        PREFIX georss: <http://www.georss.org/georss/>
+        SELECT ?concept ?label ?description ?imageURL ?lat ?lng ?polygon {
+          {
+            SELECT ?concept (STRDT(STR(SAMPLE(?lat1)),xsd:decimal) AS ?lat) (STRDT(STR(SAMPLE(?lng1)),xsd:decimal) AS ?lng) {
+              VALUES (?rlat ?rlng) {
+                <LATLNG>
+              }
+              ?concept wgs84:lat ?lat1 .
+              ?concept wgs84:long ?lng1 .
+            }
+            GROUP BY ?concept ?rlat ?rlng
+            ORDER BY (ABS(?rlat - ?lat) + ABS(?rlng - ?lng))
+            LIMIT 50
+          }
+          ?concept skos:prefLabel ?label .
+          OPTIONAL {
+            ?concept dc:description ?description .
+          }
+        }
+
   '''
-  relatedQueries : {
-    'Samoja teemoja käsitteleviä lakeja' :
-      order : 0
-      endpoint : 'http://ldf.fi/finlex/sparql'
+  relatedQueries : [
+    {
+      name: 'Kuvia paikalta'
+      endpoint : 'http://ldf.fi/warsa/sparql'
       query : '''
         PREFIX dct: <http://purl.org/dc/terms/>
         PREFIX dc: <http://purl.org/dc/elements/1.1/>
         PREFIX owl: <http://www.w3.org/2002/07/owl#>
         PREFIX skos: <http://www.w3.org/2004/02/skos/core#>
         PREFIX fls: <http://ldf.fi/finlex/schema/laki/>
-        SELECT DISTINCT ?group ?group2 ?source ?description ?url ?label ?imageURL {
-          SELECT (GROUP_CONCAT(DISTINCT ?subjectLabel;separator=', ') AS ?group) ?url (SAMPLE(?l) AS ?label) {
-            VALUES ?concept {
-              <CONCEPTS>
-            }
-            ?concept (dc:subject|dct:subject)/(skos:exactMatch|^skos:exactMatch|owl:sameAs|^owl:sameAs)* ?subject .
-            ?concept2 dct:subject ?subject .
-            FILTER(?concept!=?concept2)
-            ?concept2 skos:prefLabel|dc:title ?l .
-            FILTER(LANG(?l)="fi" || LANG(?l)="")
-            ?subject skos:prefLabel ?subjectLabel .
-            FILTER(LANG(?subjectLabel)="fi")
-            BIND(IRI(REPLACE(STR(?concept2),"http://ldf.fi/finlex/laki/statute-sd(\\\\d\\\\d\\\\d\\\\d)","http://finlex.fi/fi/laki/ajantasa/$1/$1")) AS ?url)
+	      PREFIX dct: <http://purl.org/dc/terms/>
+        PREFIX sch: <http://schema.org/>
+        SELECT ?url (SAMPLE(?subjectLabel) AS ?label) ?imageURL {
+          VALUES ?concept {
+            <CONCEPTS>
           }
-          GROUP BY ?url
-          ORDER BY DESC(COUNT(DISTINCT ?subjectLabel))
-        }'''
-    'Samoja teemoja käsitteleviä oikeuden päätöksiä' :
-      order : 1
-      endpoint : 'http://ldf.fi/finlex/sparql'
-      query : '''
-        PREFIX dct: <http://purl.org/dc/terms/>
-        PREFIX dc: <http://purl.org/dc/elements/1.1/>
-        PREFIX skos: <http://www.w3.org/2004/02/skos/core#>
-        PREFIX owl: <http://www.w3.org/2002/07/owl#>
-        PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
-        PREFIX fls: <http://ldf.fi/finlex/schema/laki/>
-        PREFIX fos: <http://ldf.fi/finlex/schema/oikeus/>
-        SELECT DISTINCT ?group ?group2 ?source ?description ?url ?label ?imageURL {
-          SELECT (GROUP_CONCAT(DISTINCT ?subjectLabel;separator=', ') AS ?group) ?url (SAMPLE(?l) AS ?label) {
-            VALUES ?concept {
-              <CONCEPTS>
-            }
-            ?concept (dc:subject|dct:subject)/(skos:exactMatch|^skos:exactMatch|owl:sameAs|^owl:sameAs)* ?subject .
-            ?concept2 dc:subject ?subject .
-            FILTER(?concept!=?concept2)
-            ?concept2 <http://purl.org/finlex/id/common/sourceUrl> ?url .
-            ?concept2 rdfs:label ?l .
-            FILTER(LANG(?l)="fi" || LANG(?l)="")
-            ?subject skos:prefLabel ?subjectLabel .
-            FILTER(LANG(?subjectLabel)="fi")
-          }
-          GROUP BY ?url
-          ORDER BY DESC(COUNT(DISTINCT ?subjectLabel))
-        }'''
-    'Samoja teemoja käsitteleviä uutisia' :
-      order : 2
-      endpoint : 'http://ldf.fi/finlex/sparql'
-      query : '''
-        PREFIX dct: <http://purl.org/dc/terms/>
-        PREFIX dc: <http://purl.org/dc/elements/1.1/>
-        PREFIX skos: <http://www.w3.org/2004/02/skos/core#>
-        PREFIX owl: <http://www.w3.org/2002/07/owl#>
-        PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
-        PREFIX fls: <http://ldf.fi/finlex/schema/laki/>
-        PREFIX fos: <http://ldf.fi/finlex/schema/oikeus/>
-        SELECT DISTINCT ?group ?group2 ?source ?description ?url ?label ?imageURL {
-          SELECT (GROUP_CONCAT(DISTINCT ?subjectLabel;separator=', ') AS ?group) ?url (SAMPLE(?l) AS ?label) {
-            VALUES ?concept {
-              <CONCEPTS>
-            }
-            ?concept (dc:subject|dct:subject)/(skos:exactMatch|^skos:exactMatch|owl:sameAs|^owl:sameAs)* ?subject .
-            ?subject skos:prefLabel ?subjectLabel .
-            FILTER(LANG(?subjectLabel)="fi")
-            SERVICE <http://ldf.fi/media/sparql> {
-              ?concept2 rdfs:label ?subjectLabel .
-              ?article <http://purl.org/edilex/schema/news/subject> ?concept2 .
-              ?article rdfs:label ?l .
-              ?article <http://purl.org/finlex/id/common/sourceUrl> ?url .
-            }
-          }
-          GROUP BY ?url
-          ORDER BY DESC(COUNT(DISTINCT ?subjectLabel))
+	         ?url dct:spatial ?concept .
+	         ?url sch:contentUrl ?imageURL .
+	         ?url skos:prefLabel ?subjectLabel .
         }
-      '''
-    'Laveasti samoja teemoja käsitteleviä lakeja' :
-      order : 3
-      endpoint : 'http://ldf.fi/finlex/sparql'
-      query : '''
-        PREFIX dct: <http://purl.org/dc/terms/>
-        PREFIX dc: <http://purl.org/dc/elements/1.1/>
-        PREFIX skos: <http://www.w3.org/2004/02/skos/core#>
-        PREFIX owl: <http://www.w3.org/2002/07/owl#>
-        PREFIX fls: <http://ldf.fi/finlex/schema/laki/>
-        SELECT DISTINCT ?group ?group2 ?source ?description ?url ?label ?imageURL {
-          SELECT (GROUP_CONCAT(DISTINCT ?subjectLabel;separator=', ') AS ?group) ?url (SAMPLE(?l) AS ?label) {
-            VALUES ?concept {
-              <CONCEPTS>
-            }
-            ?concept (dc:subject|dct:subject)/(skos:exactMatch|^skos:exactMatch|owl:sameAs|^owl:sameAs)*/(skos:related|^skos:related|skos:broader|^skos:broader)/(skos:exactMatch|^skos:exactMatch|owl:sameAs|^owl:sameAs)* ?subject .
-            ?concept2 dct:subject ?subject .
-            FILTER(?concept!=?concept2)
-            ?concept2 skos:prefLabel|dc:title ?l .
-            FILTER(LANG(?l)="fi" || LANG(?l)="")
-            ?subject skos:prefLabel ?subjectLabel .
-            FILTER(LANG(?subjectLabel)="fi")
-            BIND(IRI(REPLACE(STR(?concept2),"http://ldf.fi/finlex/laki/statute-sd(\\\\d\\\\d\\\\d\\\\d)","http://finlex.fi/fi/laki/ajantasa/$1/$1")) AS ?url)
-          }
-          GROUP BY ?url
-          ORDER BY DESC(COUNT(DISTINCT ?subjectLabel))
-        }'''
-    'Laveasti samoja teemoja käsitteleviä oikeuden päätöksiä' :
-      order : 4
-      endpoint : 'http://ldf.fi/finlex/sparql'
-      query : '''PREFIX dct: <http://purl.org/dc/terms/>
-        PREFIX dc: <http://purl.org/dc/elements/1.1/>
-        PREFIX skos: <http://www.w3.org/2004/02/skos/core#>
-        PREFIX owl: <http://www.w3.org/2002/07/owl#>
-        PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
-        PREFIX fls: <http://ldf.fi/finlex/schema/laki/>
-        PREFIX fos: <http://ldf.fi/finlex/schema/oikeus/>
-        SELECT DISTINCT ?group ?group2 ?source ?description ?url ?label ?imageURL {
-          SELECT (GROUP_CONCAT(DISTINCT ?subjectLabel;separator=', ') AS ?group) ?url (SAMPLE(?l) AS ?label) {
-            VALUES ?concept {
-              <CONCEPTS>
-            }
-            ?concept (dc:subject|dct:subject)/(skos:exactMatch|^skos:exactMatch|owl:sameAs|^owl:sameAs)*/(skos:related|^skos:related|skos:broader|^skos:broader)/(skos:exactMatch|^skos:exactMatch|owl:sameAs|^owl:sameAs)* ?subject .
-            ?concept2 dc:subject ?subject .
-            FILTER(?concept!=?concept2)
-            ?concept2 <http://purl.org/finlex/id/common/sourceUrl> ?url .
-            ?concept2 rdfs:label ?l .
-            FILTER(LANG(?l)="fi" || LANG(?l)="")
-            ?subject skos:prefLabel ?subjectLabel .
-            FILTER(LANG(?subjectLabel)="fi")
-          }
-          GROUP BY ?url
-          ORDER BY DESC(COUNT(DISTINCT ?subjectLabel))
-        }'''
-    'Laveasti samoja teemoja käsitteleviä uutisia' :
-      order : 5
-      endpoint : 'http://ldf.fi/finlex/sparql'
-      query : '''
-        PREFIX dct: <http://purl.org/dc/terms/>
-        PREFIX dc: <http://purl.org/dc/elements/1.1/>
-        PREFIX skos: <http://www.w3.org/2004/02/skos/core#>
-        PREFIX owl: <http://www.w3.org/2002/07/owl#>
-        PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
-        PREFIX fls: <http://ldf.fi/finlex/schema/laki/>
-        PREFIX fos: <http://ldf.fi/finlex/schema/oikeus/>
-        SELECT DISTINCT ?group ?group2 ?source ?description ?url ?label ?imageURL {
-          SELECT (GROUP_CONCAT(DISTINCT ?subjectLabel;separator=', ') AS ?group) ?url (SAMPLE(?l) AS ?label) {
-            VALUES ?concept {
-              <CONCEPTS>
-            }
-            ?concept (dc:subject|dct:subject)/(skos:exactMatch|^skos:exactMatch|owl:sameAs|^owl:sameAs)*/(skos:related|^skos:related|skos:broader|^skos:broader)/(skos:exactMatch|^skos:exactMatch|owl:sameAs|^owl:sameAs)* ?subject .
-            ?subject skos:prefLabel ?subjectLabel .
-            FILTER(LANG(?subjectLabel)="fi")
-            SERVICE <http://ldf.fi/media/sparql> {
-              ?concept2 rdfs:label ?subjectLabel .
-              ?article <http://purl.org/edilex/schema/news/subject> ?concept2 .
-              ?article rdfs:label ?l .
-              ?article <http://purl.org/finlex/id/common/sourceUrl> ?url .
-            }
-          }
-          GROUP BY ?url
-          ORDER BY DESC(COUNT(DISTINCT ?subjectLabel))
-        }
-      '''
-  }
+        GROUP BY ?url ?imageURL
+        '''
+    }
+  ]
