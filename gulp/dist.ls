@@ -139,7 +139,21 @@ gulp.task \dist:hack3, ->
     .pipe($.print((path)->"dist:hack3(2) "+path))
     .pipe($.size(title:'dist:hack3(2)'))
 
-gulp.task \dist:hacks, <[dist:hack1 dist:hack2 dist:hack3]>
+gulp.task \dist:hack4, ->
+  gulp.src("app/bower_components/semantic-ui/dist/semantic.min.css")
+  .pipe($.print((path)->"dist:hack4(1) "+path))
+  .pipe(gulp.dest("dist/bower_components/semantic-ui/dist"))
+  .pipe($.print((path)->"dist:hack4(2) "+path))
+  .pipe($.size(title:'dist:hack4(2)'))
+
+gulp.task \dist:hack5, ->
+    gulp.src(".tmp/styles/main.css")
+    .pipe($.print((path)->"dist:hack5(1) "+path))
+    .pipe(gulp.dest("dist/styles"))
+    .pipe($.print((path)->"dist:hack5(2) "+path))
+    .pipe($.size(title:'dist:hack5(2)'))
+
+gulp.task \dist:hacks, <[dist:hack1 dist:hack2 dist:hack3 dist:hack4 dist:hack5]>
 
 gulp.task \dist:finished, ->
   gulp.src("dist/index.html")
