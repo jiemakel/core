@@ -17,7 +17,6 @@ angular.module('app').controller 'MainCtrl', ($window, $scope, $state, $location
   css.setAttribute('rel','stylesheet')
   cd.head.appendChild(css)
   $scope.closeContext = !->
-    console.log("closeContext")
     $location.search('concepts',void)
     $scope.context=false
     $scope.concepts=void
@@ -364,7 +363,6 @@ angular.module('app').controller 'MainCtrl', ($window, $scope, $state, $location
     for response,index in responses then if response.data? then for result in response.data.results
       if (!result.properties.source?) then result.properties.source=[index+1]
       combinedResults.push(result)
-    console.log(combinedResults.length)
     $scope.findQueryRunning = false
     ngramsToConcepts = {}
     for c in combinedResults
