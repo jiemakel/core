@@ -153,7 +153,14 @@ gulp.task \dist:hack5, ->
     .pipe($.print((path)->"dist:hack5(2) "+path))
     .pipe($.size(title:'dist:hack5(2)'))
 
-gulp.task \dist:hacks, <[dist:hack1 dist:hack2 dist:hack3 dist:hack4 dist:hack5]>
+gulp.task \dist:hack6, ->
+    gulp.src(".tmp/scripts/main/*-configuration.js")
+    .pipe($.print((path)->"dist:hack6(1) "+path))
+    .pipe(gulp.dest("dist/scripts/main"))
+    .pipe($.print((path)->"dist:hack6(2) "+path))
+    .pipe($.size(title:'dist:hack6(2)'))
+
+gulp.task \dist:hacks, <[dist:hack1 dist:hack2 dist:hack3 dist:hack4 dist:hack5 dist:hack6]>
 
 gulp.task \dist:finished, ->
   gulp.src("dist/index.html")
