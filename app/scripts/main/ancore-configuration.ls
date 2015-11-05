@@ -114,13 +114,11 @@ angular.module('app').value 'configuration',
           ?concept rdfs:comment ?cgloss .
           FILTER(LANG(?cgloss)="en")
           OPTIONAL {
-            {
               ?concept wgs84:lat ?lat .
               ?concept wgs84:long ?lng .
-              FILTER NOT EXISTS {
+              MINUS {
                 ?concept a dbo:Agent .
               }
-            }
           }
           OPTIONAL {
             ?concept dbo:thumbnail ?imageURL .

@@ -1,6 +1,6 @@
 angular.module('app').value 'configuration',
   sparqlEndpoint : 'http://ldf.fi/ww1lod/sparql'
-  defaultURL : 'http://media.onki.fi/0/0/0/ww1/i71780828.pdf'
+  defaultURL : 'http://media.onki.fi/0/0/0/ww1/i71780828.pdf#15'
   # used to locate the IRI corressponding to the document metadata when opening a document URL for reading
   arpaURLs : [ 'http://demo.seco.tkk.fi/arpa/ww1lod' ]
   sources : [ 'WW1LOD', 'PCDHN-LOD','Trenches to Triples','DBPedia','Europeana' ]
@@ -140,12 +140,10 @@ angular.module('app').value 'configuration',
           ?concept rdfs:comment ?cgloss .
           FILTER(LANG(?cgloss)="en")
           OPTIONAL {
-            {
-              ?concept wgs84:lat ?lat .
-              ?concept wgs84:long ?lng .
-              FILTER NOT EXISTS {
-                ?concept a dbo:Agent .
-              }
+            ?concept wgs84:lat ?lat .
+            ?concept wgs84:long ?lng .
+            MINUS {
+              ?concept a dbo:Agent .
             }
           }
           OPTIONAL {
@@ -393,7 +391,7 @@ angular.module('app').value 'configuration',
                 SELECT ?concept (MAX(?tp) AS ?end) (MIN(?tp) AS ?beg) {
                   GRAPH ?g { ?concept crm:P4_has_time-span ?ts }
                   FILTER (?g!=<http://ldf.fi/ww1lod/iwm/>)
-                  FILTER NOT EXISTS {
+                  MINUS {
                     ?concept owl:sameAs ?concept2 .
                   }
                   ?ts crm:P82a_begin_of_the_begin|crm:P81a_end_of_the_begin|crm:P81b_begin_of_the_end|crm:P82b_end_of_the_end ?tp .
