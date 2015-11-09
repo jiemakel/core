@@ -57,6 +57,7 @@ angular.module('app').controller 'MainCtrl', ($window, $scope, $state, $location
     for concept in concepts then cs[concept]=concept
     concepts = for concept of cs then concept
     if replace then $location.replace!
+    $location.search('page',null)
     $location.search('concepts',concepts)
     context = {}
     $scope.concepts=concepts
@@ -242,7 +243,7 @@ angular.module('app').controller 'MainCtrl', ($window, $scope, $state, $location
         if (q.query)
           response <-! sparql.query(q.endpoint,q.query.replace(/<CONCEPTS>/g,sconcepts).replace(/<CONCEPTSLABELS>/g,conceptLabels).replace(/<LABELS>/g,labels).replace(/<BEG>/g,begS).replace(/<END>/g,endS),{timeout: cancelers['linkedResourcesQuery_' + id].promise}).then(_,handleError)
           --context.relatedQueriesRunning
-          if response.data.results.bindings.length>0 and response.data.results.bindings[0].url?
+          if response.data.results.bindings.length>0 and (response.data.results.bindings[0].url? or response.data.results.bindings[0].directURL?)
             res=
                 title: q.name
                 groups: []
@@ -261,7 +262,7 @@ angular.module('app').controller 'MainCtrl', ($window, $scope, $state, $location
                 if (binding.group2Order?) then group2Order[group2]=binding.group2Order.value else group2Order[group2]=group2s++
               if (!lrmap[group]?) then lrmap[group]={}
               if (!lrmap[group][group2])  then lrmap[group][group2]=[]
-              lrmap[group][group2].push({url:binding.url?.value,imageURL:binding.imageURL?.value,description:binding.description?.value,source:binding.source?.value,label:binding.label.value})
+              lrmap[group][group2].push({url:binding.url?.value,directURL:binding.directURL?.value,imageURL:binding.imageURL?.value,description:binding.description?.value,source:binding.source?.value,label:binding.label.value})
             groupOrder2 = []
             for val,ind of groupOrder then groupOrder2[ind]=val
             group2Order2 = []
@@ -473,11 +474,17 @@ angular.module('app').controller 'MainCtrl', ($window, $scope, $state, $location
   $scope.concepts = $location.search!.concepts
   if $scope.concepts?
     if !($scope.concepts instanceof Array) then $scope.concepts=$scope.concepts.split(',')
-    openContext($scope.concepts)
-  if (!$stateParams.url?) then $state.go('home',{url:configuration.defaultURL})
+  if (!$stateParams.url?)
+    if (!$scope.concepts) then $state.go('home',{url:configuration.defaultURL})
+    else
+      response <-! sparql.query(configuration.sparqlEndpoint,configuration.findDocumentURLByContextQuery.replace(/<ID>/g,'<'+$scope.concepts[0]+'>')).then(_,handleError)
+      if (response.data.results.bindings.length==1 && response.data.results.bindings[0].id?) then $state.go('home',{url:response.data.results.bindings[0].id.value,page:response.data.results.bindings[0].page?.value})
+      else $state.go('home',{url:configuration.defaultURL})
   else
+    if $scope.concepts?
+      openContext($scope.concepts)
     if (!$scope.context)
-      response <-! sparql.query(configuration.sparqlEndpoint,configuration.findContextByDocumentURLQuery.replace(/<ID>/g,'<'+$stateParams.url+'>')).then(_,handleError)
+      response <-! sparql.query(configuration.sparqlEndpoint,configuration.findContextByDocumentURLQuery.replace(/<ID>/g,'<'+$stateParams.url+'>').replace(/<PAGE>/g,'"'+$stateParams.page+'"')).then(_,handleError)
       if (response.data.results.bindings.length==1 && response.data.results.bindings[0].id?) then openContext([sparql.bindingToString(response.data.results.bindings[0].id)],true)
     cd.body.innerHTML = '<h2><i class="icon loading"></i></h2>'
     response <-! $http.head($stateParams.url.replace(/^http:\/\//,'http://ldf.fi/corsproxy/'),headers:{Accept:'application/pdf,text/html,application/xhtml+xml,text/plain;q=0.9,*/*;q=0.8'}).then(_,handleError)

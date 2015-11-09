@@ -54,9 +54,11 @@ div(ui-layout="{flow:'column'}")
             .group(ng-if="res.group")
               .content: .header {{res.group}}
             div(ng-if="!res.group")
-              a(ng-if="res.imageURL",ui-sref="home({url:res.url})"): img(ng-src="{{res.imageURL}}")
+              a(ng-if="res.directURL && res.imageURL",href="{{res.directURL}}"): img(ng-src="{{res.imageURL}}")
+              a(ng-if="res.url && res.imageURL",ui-sref="home({url:res.url})"): img(ng-src="{{res.imageURL}}")
               .content
-                a.header(href="",ui-sref="home({url:res.url})") {{res.label}}
+                a.header(ng-if="res.directURL",href="{{res.directURL}}") {{res.label}}
+                a.header(ng-if="res.url",href="",ui-sref="home({url:res.url})") {{res.label}}
                 div(ng-bind-html="res.description| limitTo:200")
                 div.extra {{res.source}}
     h2: i.icon.loading(ng-show="context.relatedQueriesRunning>0")
@@ -79,4 +81,3 @@ div(ui-layout="{flow:'column'}")
       br
       | {{error.errorRequest}}
     | </div>
-

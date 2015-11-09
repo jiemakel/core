@@ -1,20 +1,22 @@
 angular.module('app').value 'configuration',
   sparqlEndpoint : 'http://ldf.fi/warsa/sparql'
-  defaultURL : 'http://kansataisteli.sshs.fi/Tekstit/1983/Kansa_Taisteli_09_1983.pdf&page=13'
+  defaultURL : 'http://kansataisteli.sshs.fi/Tekstit/1983/Kansa_Taisteli_09_1983.pdf'
   # used to locate the IRI corressponding to the document metadata when opening a document URL for reading
   arpaURLs : ['http://demo.seco.tkk.fi/arpa/karelia-places','http://demo.seco.tkk.fi/arpa/warsa_actor_persons','http://demo.seco.tkk.fi/arpa/warsa_actor_units','http://demo.seco.tkk.fi/arpa/warsa-dbpedia-fi']
   sources : ['Karelian places','Warsa persons','Warsa units','DBPedia']
+  findDocumentURLByContextQuery : '''
+    PREFIX dcterms: <http://purl.org/dc/terms/>
+    SELECT ?id ?page {
+      <ID> dcterms:hasFormat ?tid .
+     	BIND(REPLACE(STR(?tid),"#.*","") AS ?id)
+     	BIND(REPLACE(STR(?tid),".*#page=","") AS ?page)    }
+    LIMIT 1
+  '''
   findContextByDocumentURLQuery : '''
+    PREFIX dcterms: <http://purl.org/dc/terms/>
     SELECT ?id {
-      {
-        BIND(IRI(REPLACE(STR(<ID>),"http://.*finlex\\\\.fi/../laki/ajantasa/\\\\d\\\\d\\\\d\\\\d/","http://ldf.fi/finlex/laki/statute-sd")) AS ?id)
-        FILTER EXISTS {
-          ?id ?p ?o
-        }
-      } UNION {
-        BIND(REPLACE(STR(<ID>),"http://www\\\\.finlex\\\\.fi/","http://finlex.fi/") AS ?url)
-        ?id <http://purl.org/finlex/id/common/sourceUrl> ?url .
-      }
+      BIND(IRI(CONCAT(STR(<ID>),"#page=",<PAGE>)) AS ?tid)
+      ?id dcterms:hasFormat ?tid
     }
     LIMIT 1
   '''
@@ -36,8 +38,12 @@ angular.module('app').value 'configuration',
         <CONCEPTS>
       }
       ?concept ?propertyIRI ?object .
-      ?propertyIRI rdfs:label ?property .
-      FILTER (LANG(?property)='fi' || LANG(?property)='')
+      OPTIONAL {
+        ?propertyIRI rdfs:label ?rproperty .
+        FILTER (LANG(?rproperty)='fi' || LANG(?rproperty)='')
+      }
+      BIND(COALESCE(?rproperty,REPLACE(REPLACE(STR(?propertyIRI),".*/",""),".*#","")) AS ?property)
+      FILTER(ISLITERAL(?property) && (LANG(?property)='fi' || LANG(?property)=''))
       OPTIONAL {
         ?object skos:prefLabel|dct:title|rdfs:label ?robjectLabel .
       }
@@ -50,50 +56,86 @@ angular.module('app').value 'configuration',
     PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
     PREFIX skos: <http://www.w3.org/2004/02/skos/core#>
     PREFIX dct: <http://purl.org/dc/terms/>
-    PREFIX wgs84: <http://www.w3.org/2003/01/geo/wgs84_pos#>
-    PREFIX georss: <http://www.georss.org/georss/>
-	PREFIX dc: <http://purl.org/dc/elements/1.1/>
+	  PREFIX dc: <http://purl.org/dc/elements/1.1/>
     PREFIX crm: <http://www.cidoc-crm.org/cidoc-crm/>
-    SELECT ?simageURL ?sllabel ?sdlabel ?salabel ?sgloss ?slat ?slng ?spolygon {
+    PREFIX skos: <http://www.w3.org/2004/02/skos/core#>
+    PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+    PREFIX crm: <http://www.cidoc-crm.org/cidoc-crm/>
+    PREFIX wgs84: <http://www.w3.org/2003/01/geo/wgs84_pos#>
+    PREFIX schema: <http://schema.org/>
+    PREFIX foaf: <http://xmlns.com/foaf/0.1/>
+    PREFIX dbo: <http://dbpedia.org/ontology/>
+    PREFIX rdve3: <http://rdvocab.info/ElementsGr3/>
+    SELECT (MAX(?cimageURL) AS ?simageURL) (MAX(?cllabel) AS ?sllabel) (MAX(?cdlabel) AS ?sdlabel) (MAX(?calabel) AS ?salabel) (MAX(?cgloss) AS ?sgloss) (MAX(?clat) AS ?slat) (MAX(?clng) AS ?slng) (MAX(?cpolygon) AS ?spolygon) WHERE {
       {
         VALUES ?concept {
           <CONCEPTS>
         }
-        ?concept skos:prefLabel ?sllabel .
-        FILTER(LANG(?sllabel)="fi")
         OPTIONAL {
-          ?concept dct:description ?gloss .
+          ?concept skos:prefLabel ?llabel .
+          FILTER(LANG(?llabel)="fi")
         }
-        #?concept rdfs:comment ?gloss2 .
-	OPTIONAL {
+        OPTIONAL {
+          ?concept skos:prefLabel ?dlabel .
+          FILTER(LANG(?dlabel)="")
+        }
+        OPTIONAL {
+          ?concept skos:prefLabel ?alabel .
+        }
+        OPTIONAL {
+          ?concept dc:description ?gloss .
+          FILTER(LANG(?gloss)="fi")
+        }
+        OPTIONAL {
           {
-            ?concept wgs84:lat ?slat .
-            ?concept wgs84:long ?slng .
+            ?concept wgs84:lat ?lat .
+            ?concept wgs84:long ?lng .
           } UNION {
             ?concept crm:P7_took_place_at ?c2 .
-            ?c2 wgs84:lat ?slat .
-            ?c2 wgs84:long ?slng .
+            ?c2 wgs84:lat ?lat .
+            ?c2 wgs84:long ?lng .
           }
         }
         OPTIONAL {
-          ?concept georss:polygon ?polygon .
+          ?concept schema:polygon ?polygon .
         }
+        BIND(COALESCE(?llabel,"") AS ?cllabel)
+        BIND(COALESCE(?dlabel,"") AS ?cdlabel)
+        BIND(COALESCE(?alabel,"") AS ?calabel)
+        BIND(COALESCE(?gloss,"") AS ?cgloss)
+        BIND(COALESCE(?lat,"") AS ?clat)
+        BIND(COALESCE(?lng,"") AS ?clng)
+        BIND(COALESCE(?polygon,"") AS ?cpolygon)
+        BIND("" AS ?cimageURL)
+        BIND(1 AS ?order)
       } UNION {
-        SERVICE <http://ldf.fi/dbpedia-fi/sparql> {
+        SERVICE <http://ldf.fi/dbpedia/sparql> {
           VALUES ?concept {
             <CONCEPTS>
           }
-          ?concept rdfs:label ?sllabel .
-          ?concept rdfs:comment ?gloss2 .
+          ?concept rdfs:label ?cllabel .
+          FILTER(LANG(?cllabel)="en")
+          ?concept rdfs:comment ?cgloss .
+          FILTER(LANG(?cgloss)="en")
+          OPTIONAL {
+            ?concept wgs84:lat ?lat .
+            ?concept wgs84:long ?lng .
+            MINUS {
+              ?concept a dbo:Agent .
+            }
+          }
+          OPTIONAL {
+            ?concept dbo:thumbnail ?imageURL .
+          }
         }
+        BIND(COALESCE(STR(?imageURL),"") AS ?cimageURL)
+        BIND(COALESCE(?lat,"") AS ?clat)
+        BIND(COALESCE(?lng,"") AS ?clng)
+        BIND("" AS ?cdlabel)
+        BIND("" AS ?calabel)
+        BIND("" AS ?cpolygon)
+        BIND(3 AS ?order)
       }
-      BIND("" AS ?sdlabel)
-      BIND("" AS ?salabel)
-      BIND(IF(BOUND(?gloss),CONCAT(?gloss,".\\n\\n",?gloss2),?gloss2) AS ?sgloss)
-      #BIND("" AS ?slat)
-      #BIND("" AS ?slng)
-      BIND("" AS ?spolygon)
-      BIND("" AS ?simageURL)
     }
   '''
   # used to expand a context item into intimately related resources for later querying
@@ -121,32 +163,80 @@ angular.module('app').value 'configuration',
     PREFIX skos: <http://www.w3.org/2004/02/skos/core#>
     PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
     PREFIX dc: <http://purl.org/dc/elements/1.1/>
-    PREFIX sch: <http://schema.org/>
-    PREFIX dct: <http://purl.org/dc/terms/>
+    PREFIX crm: <http://www.cidoc-crm.org/cidoc-crm/>
+    PREFIX dbo: <http://dbpedia.org/ontology/>
+    PREFIX wgs84: <http://www.w3.org/2003/01/geo/wgs84_pos#>
+    PREFIX schema: <http://schema.org/>
+    PREFIX bf: <http://bibframe.org/vocab/>
+    PREFIX rdve3: <http://rdvocab.info/ElementsGr3/>
+    PREFIX foaf: <http://xmlns.com/foaf/0.1/>
     SELECT (COALESCE(?llabel,?dlabel,?alabel) AS ?label) ?description ?order ?imageURL ?lat ?lng ?polygon ?bob ?eob ?boe ?eoe {
-      VALUES ?concept {
-        <CONCEPTS>
-      }
-      OPTIONAL {
-        ?concept skos:prefLabel ?llabel .
-        FILTER(LANG(?llabel)="en")
-      }
-      OPTIONAL {
-        ?concept skos:prefLabel ?dlabel .
-        FILTER(LANG(?dlabel)="")
-      }
-      OPTIONAL {
-        ?concept skos:prefLabel ?alabel .
-      }
-      OPTIONAL {
-        ?concept dc:description ?description .
-      }
-      OPTIONAL {
-        ?imageId dct:spatial ?concept .
-        ?imageId sch:contentUrl ?imageURL .
+      {
+        VALUES ?concept {
+          <CONCEPTS>
+        }
+        OPTIONAL {
+          ?concept skos:prefLabel ?llabel .
+          FILTER(LANG(?llabel)="fi")
+        }
+        OPTIONAL {
+          ?concept skos:prefLabel ?dlabel .
+          FILTER(LANG(?dlabel)="")
+        }
+        OPTIONAL {
+          ?concept skos:prefLabel ?alabel .
+        }
+        OPTIONAL {
+          ?concept dc:description ?description .
+          BIND(1 AS ?order)
+        }
+        OPTIONAL {
+          ?concept wgs84:lat ?lat .
+          ?concept wgs84:long ?lng .
+        }
+        OPTIONAL {
+          ?concept crm:P7_took_place_at ?place .
+          ?place wgs84:lat ?lat .
+          ?place wgs84:long ?lng .
+        }
+        OPTIONAL {
+          ?concept schema:polygon ?polygon .
+        }
+        OPTIONAL {
+          ?concept crm:P4_has_time-span ?ts .
+          OPTIONAL { ?ts crm:P82a_begin_of_the_begin ?bob }
+          OPTIONAL { ?ts crm:P81a_end_of_the_begin ?eob }
+          OPTIONAL { ?ts crm:P81b_begin_of_the_end ?boe }
+          OPTIONAL { ?ts crm:P82b_end_of_the_end ?eoe }
+        }
+      } UNION {
+        SERVICE <http://ldf.fi/dbpedia-fi/sparql> {
+          VALUES ?concept {
+            <CONCEPTS>
+          }
+          ?concept rdfs:label ?llabel .
+          FILTER(LANG(?llabel)="fi")
+          ?concept dbo:abstract ?description .
+          BIND(2 AS ?order)
+          FILTER(LANG(?description)="fi")
+          OPTIONAL {
+            ?concept dbo:thumbnail ?imageURL .
+          }
+          OPTIONAL {
+            {
+              ?concept wgs84:lat ?lat .
+              ?concept wgs84:long ?lng .
+            }
+          }
+          OPTIONAL {
+            ?concept dbo:birthDate ?bob .
+            BIND(?bob AS ?eob)
+            ?concept dbo:deathDate ?boe .
+            BIND(?bob AS ?eoe)
+          }
+        }
       }
     }
-    LIMIT 1
   '''
   temporalQueries : {
   }
@@ -191,15 +281,15 @@ angular.module('app').value 'configuration',
         PREFIX fls: <http://ldf.fi/finlex/schema/laki/>
 	      PREFIX dct: <http://purl.org/dc/terms/>
         PREFIX sch: <http://schema.org/>
-        SELECT ?url (SAMPLE(?subjectLabel) AS ?label) ?imageURL {
+        SELECT ?directURL (SAMPLE(?subjectLabel) AS ?label) ?imageURL {
           VALUES ?concept {
             <CONCEPTS>
           }
-	         ?url dct:spatial ?concept .
-	         ?url sch:contentUrl ?imageURL .
-	         ?url skos:prefLabel ?subjectLabel .
+	         ?directURL dct:spatial ?concept .
+	         ?directURL sch:contentUrl ?imageURL .
+	         ?directURL skos:prefLabel ?subjectLabel .
         }
-        GROUP BY ?url ?imageURL
+        GROUP BY ?directURL ?imageURL
         '''
     }
   ]
