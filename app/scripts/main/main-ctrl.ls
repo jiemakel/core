@@ -13,7 +13,7 @@ angular.module('app').controller 'MainCtrl', ($window, $scope, $state, $location
   css.setAttribute('rel','stylesheet')
   cd.head.appendChild(css)
   css = cd.createElement('link')
-  css.setAttribute('href',loc + 'bower_components/semantic-ui/dist/semantic.min.css')
+  css.setAttribute('href',loc + 'bower_components/semantic/dist/semantic.min.css')
   css.setAttribute('rel','stylesheet')
   cd.head.appendChild(css)
   $scope.closeContext = !->

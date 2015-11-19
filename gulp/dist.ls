@@ -17,7 +17,6 @@ gulp.task \dist:partials, ->
 gulp.task \dist:html, <[dist:partials]>, ->
   jsFilter = $.filter("**/*.js", {restore:true})
   cssFilter = $.filter("**/*.css", {restore:true})
-  assets = $.useref.assets!
   gulp.src(".tmp/*.html")
     .pipe($.plumber(errorHandler: $.notify.onError("<%= error.stack %>")))
     .pipe($.print((path)->"dist:html(1) "+path))
@@ -29,9 +28,9 @@ gulp.task \dist:html, <[dist:partials]>, ->
       addRootSlash: false
       addPrefix: ".."
     ))
-    .pipe(assets)
-    .pipe($.rev!)
+    .pipe($.useref!)
     .pipe(jsFilter)
+    .pipe($.rev!)
     .pipe($.print((path)->"dist:html-js(1) "+path))
     .pipe($.size(title:'dist:html-js(1)'))
     .pipe($.ngAnnotate!)
@@ -40,6 +39,7 @@ gulp.task \dist:html, <[dist:partials]>, ->
     .pipe($.size(title:'dist:html-js(2)'))
     .pipe(jsFilter.restore)
     .pipe(cssFilter)
+    .pipe($.rev!)
     .pipe($.print((path)->"dist:html-css(1) "+path))
     .pipe($.size(title:'dist:html-css(1)'))
     .pipe($.replace(/url\(".*?\/(\w+\.(eot|svg|ttf|woff|woff2).*?)"\)/g,'url("$1")'))
@@ -48,8 +48,6 @@ gulp.task \dist:html, <[dist:partials]>, ->
     .pipe($.print((path)->"dist:html-css(2) "+path))
     .pipe($.size(title:'dist:html-css(2)'))
     .pipe(cssFilter.restore)
-    .pipe(assets.restore!)
-    .pipe($.useref!)
     .pipe($.revReplace!)
     .pipe(gulp.dest("dist"))
     .pipe($.print((path)->"dist:html(2) "+path))
@@ -140,9 +138,9 @@ gulp.task \dist:hack3, ->
     .pipe($.size(title:'dist:hack3(2)'))
 
 gulp.task \dist:hack4, ->
-  gulp.src("app/bower_components/semantic-ui/dist/semantic.min.css")
+  gulp.src("app/bower_components/semantic/dist/semantic.min.css")
   .pipe($.print((path)->"dist:hack4(1) "+path))
-  .pipe(gulp.dest("dist/bower_components/semantic-ui/dist"))
+  .pipe(gulp.dest("dist/bower_components/semantic/dist"))
   .pipe($.print((path)->"dist:hack4(2) "+path))
   .pipe($.size(title:'dist:hack4(2)'))
 
