@@ -59,12 +59,15 @@ angular.module('app').controller 'MainCtrl', ($window, $scope, $state, $location
     if replace then $location.replace!
     $location.search('page',null)
     $location.search('concepts',concepts)
-    context = {}
     $scope.concepts=concepts
+    context = {}
+    $scope.context=context
+    if configuration.contextURLResolver
+      $scope.contextURL=$sce.trustAsResourceUrl(configuration.contextURLResolver+encodeURIComponent(concepts[0].substring(1,concepts[0].length-1)))
+      return
     context.descriptions = []
     context.imageURLs = []
     context.temporalQueries = []
-    $scope.context=context
     sconcepts = concepts.join(" ")
     cancelers = {}
     for canceler of cancelers then canceler.resolve!
@@ -337,7 +340,7 @@ angular.module('app').controller 'MainCtrl', ($window, $scope, $state, $location
   !function runAnalysis(textDivs)
     texts = [textDiv.textContent for textDiv in textDivs]
     query  = ""
-    for text in texts then query+=text+" "
+    for text in texts then query+=text + " "
     /*lastIndex = 0
     escapedTexts = ""
     for text in texts

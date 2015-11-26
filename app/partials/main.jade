@@ -18,50 +18,52 @@ div(ui-layout="{flow:'column'}")
     div(ng-show="view=='html'")
       iframe#htmlviewer
   div(ui-layout-container,size="{{context ? '40%' : '0%'}}",collapsed="true")
-    h1 {{context.label}}
-    |Sources:
-    ul.ui.horizontal.bulleted.list: li.item(ng-repeat="concept in concepts"): a(href="{{concept.substring(1,concept.length-1)}}") {{concept}}
-    div: img(ng-repeat="imageURL in context.imageURLs",ng-src="{{imageURL}}")
-    .description(ng-repeat="description in context.descriptions",ng-class="'c'+description.class") {{description.text}}
-    div(ng-show="context.cmap")
-      h2 Timeline
-      div(id="timeline")
-      span(ng-repeat="(id,col) in context.cmap",style="background-color:{{col}}") {{id}}
-    div(ng-if="context.lat")
-      h2 Location
-      map(style="display:block;height:300px",zoom="8",center="[{{context.lat}},{{context.lng}}]")
-        marker(position="[{{context.lat}},{{context.lng}}]",title="{{context.label}}")
-        marker(ng-repeat="location in context.linkedLocations" position="[{{location.lat}},{{location.lng}}]",title="{{location.label}}" icon="{{location.icon}}",on-click="openContext1(location.concept)")
-      span(ng-repeat="(sourceId,query) in configuration.locationQueries",ng-class="'c'+(sourceId+1)") {{query.name}}
-    div(ng-show="context.properties")
-      h2.ui.dividing.header Properties
-      table.ui.compact.table.segment
-        tbody
-          tr(ng-repeat="(property,objects) in context.properties")
-            td {{property}}
-            td
-              ul.ui.horizontal.bulleted.list: li.item(ng-repeat="object in objects")
-                a(ng-if="object.iri",href="",ng-click="openContext2(object.iri);$event.stopPropagation()") {{object.label}}
-                span(ng-if="!object.iri") {{object.label}}
-    h2.ui.dividing.header Related Resources
-    div(ng-show="context.relatedQueriesRunning==0 && context.linkedResourcesCount==0") No resources found.
-    .ui.segment(ng-repeat="data in context.linkedResources | filter:{title:'!undefined'}")
-      h3.ui.dividing.header {{data.title}}
-      div(ng-repeat="group in data.groups")
-        h4.ui.header {{group.group}}
-        .scroller.ui.horizontal.list
-          .item(ng-repeat="res in group.resources")
-            .group(ng-if="res.group")
-              .content: .header {{res.group}}
-            div(ng-if="!res.group")
-              a(ng-if="res.directURL && res.imageURL",href="{{res.directURL}}"): img(ng-src="{{res.imageURL}}")
-              a(ng-if="res.url && res.imageURL",ui-sref="home({url:res.url})"): img(ng-src="{{res.imageURL}}")
-              .content
-                a.header(ng-if="res.directURL",href="{{res.directURL}}") {{res.label}}
-                a.header(ng-if="res.url",href="",ui-sref="home({url:res.url})") {{res.label}}
-                div(ng-bind-html="res.description| limitTo:200")
-                div.extra {{res.source}}
-    h2: i.icon.loading(ng-show="context.relatedQueriesRunning>0")
+    iframe(style="width:100%;height:100%",ng-show="contextURL",src="{{contextURL}}")
+    div(ng-show="!contextURL")
+      h1 {{context.label}}
+      |Sources:
+      ul.ui.horizontal.bulleted.list: li.item(ng-repeat="concept in concepts"): a(href="{{concept.substring(1,concept.length-1)}}") {{concept}}
+      div: img(ng-repeat="imageURL in context.imageURLs",ng-src="{{imageURL}}")
+      .description(ng-repeat="description in context.descriptions",ng-class="'c'+description.class") {{description.text}}
+      div(ng-show="context.cmap")
+        h2 Timeline
+        div(id="timeline")
+        span(ng-repeat="(id,col) in context.cmap",style="background-color:{{col}}") {{id}}
+      div(ng-if="context.lat")
+        h2 Location
+        map(style="display:block;height:300px",zoom="8",center="[{{context.lat}},{{context.lng}}]")
+          marker(position="[{{context.lat}},{{context.lng}}]",title="{{context.label}}")
+          marker(ng-repeat="location in context.linkedLocations" position="[{{location.lat}},{{location.lng}}]",title="{{location.label}}" icon="{{location.icon}}",on-click="openContext1(location.concept)")
+        span(ng-repeat="(sourceId,query) in configuration.locationQueries",ng-class="'c'+(sourceId+1)") {{query.name}}
+      div(ng-show="context.properties")
+        h2.ui.dividing.header Properties
+        table.ui.compact.table.segment
+          tbody
+            tr(ng-repeat="(property,objects) in context.properties")
+              td {{property}}
+              td
+                ul.ui.horizontal.bulleted.list: li.item(ng-repeat="object in objects")
+                  a(ng-if="object.iri",href="",ng-click="openContext2(object.iri);$event.stopPropagation()") {{object.label}}
+                  span(ng-if="!object.iri") {{object.label}}
+      h2.ui.dividing.header Related Resources
+      div(ng-show="context.relatedQueriesRunning==0 && context.linkedResourcesCount==0") No resources found.
+      .ui.segment(ng-repeat="data in context.linkedResources | filter:{title:'!undefined'}")
+        h3.ui.dividing.header {{data.title}}
+        div(ng-repeat="group in data.groups")
+          h4.ui.header {{group.group}}
+          .scroller.ui.horizontal.list
+            .item(ng-repeat="res in group.resources")
+              .group(ng-if="res.group")
+                .content: .header {{res.group}}
+              div(ng-if="!res.group")
+                a(ng-if="res.directURL && res.imageURL",href="{{res.directURL}}"): img(ng-src="{{res.imageURL}}")
+                a(ng-if="res.url && res.imageURL",ui-sref="home({url:res.url})"): img(ng-src="{{res.imageURL}}")
+                .content
+                  a.header(ng-if="res.directURL",href="{{res.directURL}}") {{res.label}}
+                  a.header(ng-if="res.url",href="",ui-sref="home({url:res.url})") {{res.label}}
+                  div(ng-bind-html="res.description| limitTo:200")
+                  div.extra {{res.source}}
+      h2: i.icon.loading(ng-show="context.relatedQueriesRunning>0")
 #bottom
   span(ng-repeat="source in configuration.sources")
     span(ng-class="'c'+($index+1)") {{source}}

@@ -2,8 +2,9 @@ angular.module('app').value 'configuration',
   sparqlEndpoint : 'http://ldf.fi/warsa/sparql'
   defaultURL : 'http://kansataisteli.sshs.fi/Tekstit/1983/Kansa_Taisteli_09_1983.pdf'
   # used to locate the IRI corressponding to the document metadata when opening a document URL for reading
-  arpaURLs : ['http://demo.seco.tkk.fi/arpa/karelia-places','http://demo.seco.tkk.fi/arpa/warsa_actor_persons','http://demo.seco.tkk.fi/arpa/warsa_actor_units','http://demo.seco.tkk.fi/arpa/warsa-dbpedia-fi']
+  arpaURLs : ['http://demo.seco.tkk.fi/arpa/karelia-places','http://demo.seco.tkk.fi/arpa/warsa_core_actors','http://demo.seco.tkk.fi/arpa/warsa_core_units','http://demo.seco.tkk.fi/arpa/warsa-dbpedia-fi']
   sources : ['Karelian places','Warsa persons','Warsa units','DBPedia']
+  contextURLResolver : 'http://www.sotasampo.fi/page?uri='
   findDocumentURLByContextQuery : '''
     PREFIX dcterms: <http://purl.org/dc/terms/>
     SELECT ?id ?page {
@@ -15,8 +16,6 @@ angular.module('app').value 'configuration',
   findContextByDocumentURLQuery : '''
     PREFIX dcterms: <http://purl.org/dc/terms/>
     SELECT ?id {
-      BIND(IRI(CONCAT(STR(<ID>),"#page=",<PAGE>)) AS ?tid)
-      ?id dcterms:hasFormat ?tid
     }
     LIMIT 1
   '''
@@ -109,14 +108,12 @@ angular.module('app').value 'configuration',
         BIND("" AS ?cimageURL)
         BIND(1 AS ?order)
       } UNION {
-        SERVICE <http://ldf.fi/dbpedia/sparql> {
+        SERVICE <http://ldf.fi/dbpedia-fi/sparql> {
           VALUES ?concept {
             <CONCEPTS>
           }
           ?concept rdfs:label ?cllabel .
-          FILTER(LANG(?cllabel)="en")
           ?concept rdfs:comment ?cgloss .
-          FILTER(LANG(?cgloss)="en")
           OPTIONAL {
             ?concept wgs84:lat ?lat .
             ?concept wgs84:long ?lng .
