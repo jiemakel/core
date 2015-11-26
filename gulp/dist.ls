@@ -138,9 +138,9 @@ gulp.task \dist:hack3, ->
     .pipe($.size(title:'dist:hack3(2)'))
 
 gulp.task \dist:hack4, ->
-  gulp.src("app/bower_components/semantic/dist/semantic.min.css")
+  gulp.src("app/bower_components/semantic-ui/dist/semantic.min.css")
   .pipe($.print((path)->"dist:hack4(1) "+path))
-  .pipe(gulp.dest("dist/bower_components/semantic/dist"))
+  .pipe(gulp.dest("dist/bower_components/semantic-ui/dist"))
   .pipe($.print((path)->"dist:hack4(2) "+path))
   .pipe($.size(title:'dist:hack4(2)'))
 
