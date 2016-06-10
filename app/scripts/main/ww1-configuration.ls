@@ -8,8 +8,8 @@ angular.module('app').value 'configuration',
   findContextByDocumentURLQuery : '''
     PREFIX foaf: <http://xmlns.com/foaf/0.1/>
     SELECT ?id {
-      BIND(STR(<ID>) AS ?page)
       SERVICE <http://ldf.fi/colorado-ww1/sparql> {
+        BIND(REPLACE(STR(<ID>),'https://','http://') AS ?page)
         ?id foaf:page ?page .
       }
     }
@@ -56,12 +56,15 @@ angular.module('app').value 'configuration',
         FILTER(ISLITERAL(?objectLabel) && (LANG(?objectLabel)='en' || LANG(?objectLabel)=''))
       } UNION {
         SERVICE <http://ldf.fi/colorado-ww1/sparql> {
-          VALUES ?concept {
-            <CONCEPTS>
-          }
           {
+            VALUES ?concept {
+              <CONCEPTS>
+            }
             ?concept ?propertyIRI ?object .
           } UNION {
+            VALUES ?concept {
+              <CONCEPTS>
+            }
             ?concept bf:instanceOf ?book .
             ?book ?propertyIRI ?object .
           }
@@ -109,14 +112,13 @@ angular.module('app').value 'configuration',
           FILTER(LANG(?gloss)="en")
         }
         OPTIONAL {
-          {
-            ?concept wgs84:lat ?lat .
-            ?concept wgs84:long ?lng .
-          } UNION {
+          ?concept wgs84:lat ?lat .
+          ?concept wgs84:long ?lng .
+        }
+        OPTIONAL {
             ?concept crm:P7_took_place_at ?c2 .
             ?c2 wgs84:lat ?lat .
             ?c2 wgs84:long ?lng .
-          }
         }
         OPTIONAL {
           ?concept georss:polygon ?polygon .
@@ -142,7 +144,7 @@ angular.module('app').value 'configuration',
           OPTIONAL {
             ?concept wgs84:lat ?lat .
             ?concept wgs84:long ?lng .
-            MINUS {
+            FILTER NOT EXISTS {
               ?concept a dbo:Agent .
             }
           }
@@ -209,11 +211,7 @@ angular.module('app').value 'configuration',
             VALUES ?originalConcept {
               <CONCEPTS>
             }
-            {
-              ?originalConcept bf:instanceOf/bf:subject ?concept .
-            } UNION {
-              ?originalConcept bf:instanceOf/bf:contributor ?concept .
-            }
+            ?originalConcept bf:instanceOf/(bf:subject|bf:contributor) ?concept .
           }
         }
     }
@@ -283,10 +281,8 @@ angular.module('app').value 'configuration',
             ?concept dbo:thumbnail ?imageURL .
           }
           OPTIONAL {
-            {
-              ?concept wgs84:lat ?lat .
-              ?concept wgs84:long ?lng .
-            }
+            ?concept wgs84:lat ?lat .
+            ?concept wgs84:long ?lng .
           }
           OPTIONAL {
             ?concept dbo:birthDate ?bob .
@@ -391,7 +387,7 @@ angular.module('app').value 'configuration',
                 SELECT ?concept (MAX(?tp) AS ?end) (MIN(?tp) AS ?beg) {
                   GRAPH ?g { ?concept crm:P4_has_time-span ?ts }
                   FILTER (?g!=<http://ldf.fi/ww1lod/iwm/>)
-                  MINUS {
+                  FILTER NOT EXISTS {
                     ?concept owl:sameAs ?concept2 .
                   }
                   ?ts crm:P82a_begin_of_the_begin|crm:P81a_end_of_the_begin|crm:P81b_begin_of_the_end|crm:P82b_end_of_the_end ?tp .
@@ -541,14 +537,17 @@ angular.module('app').value 'configuration',
         PREFIX xsd: <http://www.w3.org/2001/XMLSchema#>
         PREFIX georss: <http://www.georss.org/georss/>
         SELECT ?concept (STRDT(STR(SAMPLE(?lat1)),xsd:decimal) AS ?lat) (STRDT(STR(SAMPLE(?lng1)),xsd:decimal) AS ?lng) ?label {
-          VALUES ?id {
-            <CONCEPTS>
-          }
           {
+            VALUES ?id {
+              <CONCEPTS>
+            }
             ?id dbo:birthPlace ?concept .
             ?id dbo:birthDate ?date .
             BIND("Born" AS ?eventLabel)
           } UNION {
+            VALUES ?id {
+              <CONCEPTS>
+            }
             ?id dbo:deathPlace ?concept .
             ?id dbo:deathDate ?date .
             BIND("Died" AS ?eventLabel)
@@ -613,15 +612,18 @@ angular.module('app').value 'configuration',
         SELECT (GROUP_CONCAT(DISTINCT ?gr;separator=', ') AS ?group) (MIN(?gr2) AS ?group2) (SAMPLE(?d) AS ?description) ?url (SAMPLE(?l) AS ?label) (SAMPLE(?iURL) AS ?imageURL) {
           {
             SELECT ?s (GROUP_CONCAT(DISTINCT ?mtype;separator=', ') AS ?gr2) (SAMPLE(?mlabel) AS ?gr) {
-              VALUES (?concept ?mlabel) {
-                  <CONCEPTSLABELS>
-              }
               {
+                VALUES (?concept ?mlabel) {
+                    <CONCEPTSLABELS>
+                }
                 ?s bf:subject ?concept .
                 BIND("as subject" AS ?mtype)
               }
               UNION
               {
+                VALUES (?concept ?mlabel) {
+                    <CONCEPTSLABELS>
+                }
                 ?s cww1s:possiblyMentions ?concept .
                 BIND("mentioned" AS ?mtype)
               }
@@ -630,12 +632,15 @@ angular.module('app').value 'configuration',
           } UNION {
             {
               SELECT ?s2 (SAMPLE(?mlabel) AS ?gr) {
-                VALUES ?mlabel {
-                  <LABELS>
-                }
                 {
+                  VALUES ?mlabel {
+                    <LABELS>
+                  }
                   ?s2 bf:authorizedAccessPoint ?mlabel .
                 } UNION {
+                  VALUES ?mlabel {
+                    <LABELS>
+                  }
                   BIND(REPLACE(STR(?mlabel),"(?U)(\\\\w+) (.*)","$2, $1") AS ?mlabel2)
                   ?s2 a bf:Person .
                   ?s2 bf:authorizedAccessPoint ?alabel .
@@ -668,49 +673,35 @@ angular.module('app').value 'configuration',
         PREFIX xsd: <http://www.w3.org/2001/XMLSchema#>
         PREFIX luc: <http://www.ontotext.com/owlim/lucene#>
         SELECT DISTINCT ?group ?group2 ?source ?description ?url ?label ?imageURL {
-          {
-            VALUES ?group {
-              <LABELS>
-            }
-            BIND (CONCAT("+",REPLACE(?group,"\\\\s+"," +")) AS ?mlabel)
-            SERVICE <http://europeana.ontotext.com/sparql> {
-              ?subject luc: ?mlabel .
-              ?subject luc:score ?score .
+          VALUES ?group {
+            <LABELS>
+          }
+          BIND (CONCAT("+",REPLACE(?group,"\\\\s+"," +")) AS ?mlabel)
+          SERVICE <http://europeana.ontotext.com/sparql> {
+            SELECT DISTINCT ?mlabel ?group ?group2 ?source ?description ?url ?label ?imageURL {
+              ?s luc:full ?mlabel .
+              ?s luc:score ?score .
               FILTER(STRDT(?score,<http://www.w3.org/2001/XMLSchema#decimal>)>0.5)
-              { SELECT ?label ?description ?type ?url ?source ?imageURL {
-                {
-                  ?s dc:subject ?subject .
-                } UNION {
-                  ?s dc:title ?subject .
-                } UNION {
-                  ?s dc:description ?subject .
-                }
-                ?s dc:title ?label .
-                ?s dc:description ?description .
-                ?s edm:type ?type .
-                ?s ore:proxyFor ?edmA .
-                ?p edm:aggregatedCHO ?edmA .
-                ?p edm:isShownAt ?url .
-                ?p edm:provider ?source .
-                ?p2 edm:aggregatedCHO ?edmA .
-                ?p2 edm:preview ?imageURL .
-                OPTIONAL {
-                  ?s2 ore:proxyFor ?edmA .
-                  ?s2 edm:year ?year .
-                }
-              } LIMIT 50
-              }
-            }
-            BIND(REPLACE(REPLACE(REPLACE(?type,"IMAGE","Images"),"TEXT","Texts"),"VIDEO","Videos") AS ?group2)
+              ?s dc:title ?label .
+              ?s dc:description ?description .
+              ?s edm:type ?type .
+              ?s ore:proxyFor ?edmA .
+              ?p edm:aggregatedCHO ?edmA .
+              ?p edm:isShownAt ?url .
+              ?p edm:provider ?source .
+              ?p2 edm:aggregatedCHO ?edmA .
+              ?p2 edm:preview ?imageURL .
+              BIND(REPLACE(REPLACE(REPLACE(?type,"IMAGE","Images"),"TEXT","Texts"),"VIDEO","Videos") AS ?group2)
+            } LIMIT 50
           }
         }
       '''
     }
-    {
-      name : 'WW1 Discovery'
-      type : 'SOLR'
-      endpoint : 'http://ldf.fi/corsproxy/discovery.ac.uk/ww1/api/?q=<QUERY>&wt=json'
-    }
+#    {
+#      name : 'WW1 Discovery'
+#      type : 'SOLR'
+#      endpoint : 'http://ldf.fi/corsproxy/discovery.ac.uk/ww1/api/?q=<QUERY>&wt=json'
+#    }
     {
       name :'Digital Public Library of America'
       type : 'Europeana'

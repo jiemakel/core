@@ -116,7 +116,7 @@ angular.module('app').value 'configuration',
           OPTIONAL {
               ?concept wgs84:lat ?lat .
               ?concept wgs84:long ?lng .
-              MINUS {
+              FILTER NOT EXISTS {
                 ?concept a dbo:Agent .
               }
           }

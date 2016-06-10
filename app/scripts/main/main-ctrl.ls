@@ -416,7 +416,7 @@ angular.module('app').controller 'MainCtrl', ($window, $scope, $state, $location
   oldError = PDFView.error
   PDFView.error = (error,moreInfo) !->
     if error=='An error occurred while loading the PDF.' and moreInfo.message == /^Unexpected server response \(0\) while retrieving PDF "/
-      $window.DEFAULT_URL = 'http://ldf.fi/corsproxy/'+$window.DEFAULT_URL.substring(7)
+      $window.DEFAULT_URL = 'http://ldf.fi/corsproxy/'+$window.DEFAULT_URL.replace(/^(https?):(?:\/|%2F)/,'$1')
       $window.webViewerLoad!
     else oldError(error,moreInfo)
   TextLayerBuilder.prototype.renderLayer = !->
@@ -490,7 +490,7 @@ angular.module('app').controller 'MainCtrl', ($window, $scope, $state, $location
       response <-! sparql.query(configuration.sparqlEndpoint,configuration.findContextByDocumentURLQuery.replace(/<ID>/g,'<'+$stateParams.url+'>').replace(/<PAGE>/g,'"'+$stateParams.page+'"')).then(_,handleError)
       if (response.data.results.bindings.length==1 && response.data.results.bindings[0].id?) then openContext([sparql.bindingToString(response.data.results.bindings[0].id)],true)
     cd.body.innerHTML = '<h2><i class="icon loading"></i></h2>'
-    response <-! $http.head($stateParams.url.replace(/^http:\/\//,'http://ldf.fi/corsproxy/'),headers:{Accept:'application/pdf,text/html,application/xhtml+xml,text/plain;q=0.9,*/*;q=0.8'}).then(_,handleError)
+    response <-! $http.head($stateParams.url.replace(/^(https?):\//,'http://ldf.fi/corsproxy/$1'),headers:{Accept:'application/pdf,text/html,application/xhtml+xml,text/plain;q=0.9,*/*;q=0.8'}).then(_,handleError)
     url = response.headers('X-Location')
     $scope.url = url
     $location.search('url',url)

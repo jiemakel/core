@@ -220,10 +220,8 @@ angular.module('app').value 'configuration',
             ?concept dbo:thumbnail ?imageURL .
           }
           OPTIONAL {
-            {
-              ?concept wgs84:lat ?lat .
-              ?concept wgs84:long ?lng .
-            }
+            ?concept wgs84:lat ?lat .
+            ?concept wgs84:long ?lng .
           }
           OPTIONAL {
             ?concept dbo:birthDate ?bob .
