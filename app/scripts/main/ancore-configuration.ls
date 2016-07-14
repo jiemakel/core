@@ -399,43 +399,33 @@ angular.module('app').value 'configuration',
         PREFIX ore: <http://www.openarchives.org/ore/terms/>
         PREFIX xsd: <http://www.w3.org/2001/XMLSchema#>
         PREFIX luc: <http://www.ontotext.com/owlim/lucene#>
-        SELECT DISTINCT ?group ?group2 ?source ?description ?url ?label ?imageURL {
-          {
-            VALUES ?group {
-              <LABELS>
-            }
-            BIND (CONCAT("+",REPLACE(?group,"\\\\s+"," +")) AS ?mlabel)
-            SERVICE <http://europeana.ontotext.com/sparql> {
-              ?subject luc: ?mlabel .
-              ?subject luc:score ?score .
+        SELECT (GROUP_CONCAT(DISTINCT ?olabel;separator=', ') AS ?group) ?group2 ?source ?description ?url ?label ?imageURL {
+          VALUES ?olabel {
+            <LABELS>
+          }
+          BIND (CONCAT("+",REPLACE(?olabel,"\\\\s+"," +")) AS ?mlabel)
+          SERVICE <http://europeana.ontotext.com/sparql> {
+            SELECT ?mlabel ?group2 ?source (GROUP_CONCAT(DISTINCT ?descriptionS;separator=', ') AS ?description) ?url (GROUP_CONCAT(DISTINCT ?labelS;separator=', ') AS ?label) (SAMPLE(?imageURLS) AS ?imageURL) {
+              ?s luc:full ?mlabel .
+              ?s luc:score ?score .
               FILTER(STRDT(?score,<http://www.w3.org/2001/XMLSchema#decimal>)>0.5)
-              { SELECT ?label ?description ?type ?url ?source ?imageURL {
-                {
-                  ?s dc:subject ?subject .
-                } UNION {
-                  ?s dc:title ?subject .
-                } UNION {
-                  ?s dc:description ?subject .
-                }
-                ?s dc:title ?label .
-                ?s dc:description ?description .
-                ?s edm:type ?type .
-                ?s ore:proxyFor ?edmA .
-                ?p edm:aggregatedCHO ?edmA .
-                ?p edm:isShownAt ?url .
-                ?p edm:provider ?source .
-                ?p2 edm:aggregatedCHO ?edmA .
-                ?p2 edm:preview ?imageURL .
-                OPTIONAL {
-                  ?s2 ore:proxyFor ?edmA .
-                  ?s2 edm:year ?year .
-                }
-              } LIMIT 50
-              }
+              ?s dc:title ?labelS .
+              ?s dc:description ?descriptionS .
+              ?s edm:type ?type .
+              ?s ore:proxyFor ?edmA .
+              ?p edm:aggregatedCHO ?edmA .
+              ?p edm:isShownAt ?url .
+              ?p edm:provider ?source .
+              ?p2 edm:aggregatedCHO ?edmA .
+              ?p2 edm:object ?edmObject .
+              BIND(IRI(CONCAT('http://www.europeanastatic.eu/api/v2/thumbnail-by-url.json?size=w400&uri=',STR(?edmObject))) AS ?imageURLS)
+              BIND(REPLACE(REPLACE(REPLACE(?type,"IMAGE","Images"),"TEXT","Texts"),"VIDEO","Videos") AS ?group2)
             }
-            BIND(REPLACE(REPLACE(REPLACE(?type,"IMAGE","Images"),"TEXT","Texts"),"VIDEO","Videos") AS ?group2)
+            GROUP BY ?mlabel ?group2 ?source ?url
+            LIMIT 50
           }
         }
+        GROUP BY ?group2 ?source ?description ?url ?label ?imageURL
       '''
     }
     {
